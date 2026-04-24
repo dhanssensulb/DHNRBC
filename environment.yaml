@@ -1,0 +1,55 @@
+name: dhnrbc
+
+channels:
+- conda-forge
+
+dependencies:
+  # core
+- python>=3.11,<3.13
+- pip
+
+  # scientific
+- numpy
+- scipy
+- pandas>=2
+- xarray
+- networkx
+- scikit-learn
+
+  # geodata
+- geopandas>=1
+- shapely>=2
+- cartopy>=0.22
+- rasterio
+- pyproj
+- fiona
+- osmnx
+- owslib
+- geojson
+- folium
+- contextily
+
+  # file I/O
+- tabula-py
+- xlrd
+- openpyxl
+- pyxlsb
+- lxml
+- pytables
+- cfgrib
+- pyarrow
+
+  # plotting
+- matplotlib>=3.8
+- plotly
+- geoviews>=1.10
+- graphviz
+
+  # interactive
+- ipython
+- jupyterlab
+- pre-commit
+- ipywidgets
+
+- pip:
+  - highspy>=1.13
