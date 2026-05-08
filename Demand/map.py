@@ -13,6 +13,24 @@ import matplotlib.pyplot as plt
 plt.rc('text', usetex=True) # Use LaTeX for rendering text
 plt.rc('font', family='sans-serif')
 
+#%% Test
+from owslib.wfs import WebFeatureService
+
+WFS_UrbIS_Macro = 'https://geoservices-vector.irisnet.be/geoserver/BISA/wfs'
+
+# Connect to the WFS
+wfs_urbis_macro = WebFeatureService(url=WFS_UrbIS_Macro, version='2.0.0')
+
+import geopandas as gpd
+
+# Belgian Lambert 72
+crs_lambert = 'EPSG:31370'
+
+features = list(wfs_urbis_macro.contents.keys())
+print('Title:', wfs_urbis_macro.identification.title)
+print('Abstract:', wfs_urbis_macro.identification.abstract)
+print('Features:', features)
+
 #%% Layers - UrbIS
 import geopandas as gpd
 

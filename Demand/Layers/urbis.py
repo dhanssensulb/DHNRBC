@@ -5,7 +5,7 @@ Created on Apr 26
 @author: hanssens
 """
 
-# %% WFS Connection
+# %% WFS Connection - UrbIS Vector
 from owslib.wfs import WebFeatureService
 
 WFS_UrbIS_vec = 'https://geoservices-vector.irisnet.be/geoserver/urbisvector/wfs'
@@ -28,7 +28,14 @@ crs_lambert = 'EPSG:31370'
 properties = {
     'urbisvector:Addresses': [
         'STRNAMEFRE', 'POLICENUM', 'BOXNUMBER', 'ZIPCODE',
-        'STATNISCODE', 'CAPAKEY', 'XL72', 'YL72', 'geom'
+        'STATNISCODE', 'CAPAKEY', 'XL72', 'YL72',
+        'BU_ID', 'STREET_ID', 'CAPAKEY', 'geom'
+    ],
+    'urbisvector:Buildings': [
+        'INSPIRE_ID', 'BLOCK_ID', 'geom'
+    ],
+    'urbisvector:Blocks': [
+        'INSPIRE_ID', 'TYPE', 'NAMEFRE', 'LVL', 'geom'
     ],
     'urbisvector:CadastralParcels': [
         'CAPAKEY', 'TYPE', 'CADAST_DIV', 'MUNNISCODE', 'geom'
@@ -93,5 +100,5 @@ for layer, props in properties.items():
     gdf.to_feather(file_name)
 
     end = time.time()
-    print(f'Time taken: {end - start:.2f} seconds')    
+    print(f'Time taken: {end - start:.2f} seconds')
 # %%
