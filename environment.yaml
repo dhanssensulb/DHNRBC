@@ -28,6 +28,7 @@ dependencies:
 - geojson
 - folium
 - contextily
+- neatnet
 
   # file I/O
 - tabula-py

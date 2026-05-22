@@ -6,8 +6,6 @@ Created on Apr 26
 """
 
 #%% Libraries and config
-from ast import For
-
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -20,7 +18,7 @@ def load_gdf(file, mask=None, min_overlap_ratio=0.5):
     if mask:
         geom_type = gdf.geometry.geom_type.unique()
         if geom_type[0] in ['Polygon', 'MultiPolygon']:
-            gdf = gdf.loc[lambda df: df.intersection(mask).area / df.area >= min_overlap_ratio]
+            gdf = gdf.loc[lambda df: df.intersection(mask).area / df.area > min_overlap_ratio]
         else:
             gdf = gdf.loc[lambda df: df.within(mask)]
     return gdf
@@ -72,7 +70,7 @@ file_nodes = '../Data/UrbIS/StreetNodes.feather'
 gdf_nodes = load_gdf(file_nodes, mask=mask_pentagone)
 
 file_segments = '../Data/BrugIS/Public_space_Programmations_segments.feather'
-gdf_segments = load_gdf(file_segments, mask=mask_pentagone) # ORG_TYPE (Noeud, Tronçon)
+gdf_segments = load_gdf(file_segments, mask=mask_pentagone, min_overlap_ratio=0) # ORG_TYPE (Noeud, Tronçon)
 
 #%% Preprocessing
 
@@ -181,6 +179,78 @@ heritage_geom = gdf_h.union_all()
 intersection_heritage = gdf.set_geometry('geometry_building').intersection(heritage_geom)
 
 gdf['HERITAGE'] = intersection_heritage.area / gdf.set_geometry('geometry_building').area >= 0.5
+
+#%%
+
+from shapely.ops import nearest_points
+from shapely.geometry import LineString
+
+def find_adjacent_buildings(gdf_axes, gdf_b, max_distance = 50):
+
+    buildings = gdf_b.reset_index(drop=True).copy()
+    bld_sindex = buildings.sindex
+
+    connections = []
+
+    for ax_idx, ax_row in gdf_axes.iterrows():
+        ax_geom = ax_row.geometry
+
+        # 1) Candidate buildings within max_distance of this street
+        buffer = ax_geom.buffer(max_distance, cap_style='flat')
+
+        candidate_positions = list(bld_sindex.intersection(buffer.bounds))
+        candidates = buildings.iloc[candidate_positions]
+
+        for bld_pos, bld_row in candidates.iterrows():
+            bld_geom = bld_row.geometry
+
+            # 2) Shortest line from street to building border
+            nearest_on_street, nearest_on_building = nearest_points(ax_geom, bld_geom)
+            connection = LineString([nearest_on_street, nearest_on_building])
+
+            if connection.length < 1e-6:  # Skip if the building is already touching the street
+                continue
+
+            # 3) Check if connection is blocked by another building
+            blocked = False
+            obstacle_positions = list(bld_sindex.intersection(connection.bounds))
+            for obs_pos in obstacle_positions:
+                if obs_pos == bld_pos:  # Don't compare with itself
+                    continue
+                obs_geom = buildings.geometry.iloc[obs_pos]
+                if connection.crosses(obs_geom) or connection.within(obs_geom):
+                        blocked = True
+                        break
+
+            if not blocked:
+                connections.append({
+                    'street_idx': ax_idx,
+                    'building_idx': bld_pos,
+                    'connection_length': connection.length,
+                    'geometry': connection
+                })
+
+    return gpd.GeoDataFrame(connections, geometry='geometry', crs=gdf_axes.crs)
+
+gdf_connections = find_adjacent_buildings(gdf_axes, gdf_b)
+
+#%%
+
+fig, ax = plt.subplots(figsize=(20, 20))
+
+# Buildings
+gdf_b_plot = gdf.set_geometry('geometry_building').groupby('BUILDING_ID').first()
+gdf_b_plot.plot(ax=ax, alpha=0.3)
+
+# Network
+gdf_axes.plot(ax=ax, color='k')
+gdf_nodes.plot(ax=ax, color='r', markersize=10)
+
+# Connections
+gdf_connections.plot(ax=ax, color='blue', linewidth=0.5)
+
+plt.axis('off')
+plt.show()
 
 # %% Plotting
 

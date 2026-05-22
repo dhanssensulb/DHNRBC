@@ -5,24 +5,18 @@ Created on Apr 26
 @author: hanssens
 """
 
-# %% WFS Connection - UrbIS Vector
-from owslib.wfs import WebFeatureService
+#%%
+
+import load
+
+# For debugging
+import importlib
+importlib.reload(load)
 
 WFS_UrbIS_vec = 'https://geoservices-vector.irisnet.be/geoserver/urbisvector/wfs'
 
-# Connect to the WFS
-wfs_urbis_vec = WebFeatureService(url=WFS_UrbIS_vec, version='2.0.0')
+wfs, layers = load.connect_to_wfs(WFS_UrbIS_vec)
 
-features = list(wfs_urbis_vec.contents.keys())
-print('Title:', wfs_urbis_vec.identification.title)
-print('Abstract:', wfs_urbis_vec.identification.abstract)
-print('Features:', features)
-
-# %% Layers of interest
-import time
-import geopandas as gpd
-
-# Belgian Lambert 72
 crs_lambert = 'EPSG:31370'
 
 properties = {
@@ -76,29 +70,14 @@ properties = {
     ],
 }
 
-# Fetch each layer and store in a dictionary
 gdfs = {}
 for layer, props in properties.items():
-
-    print(f'Fetching: {layer}')
-    time.sleep(1)
-    start = time.time()
-
-    r = wfs_urbis_vec.getfeature(
-        typename=layer,
-        propertyname=props,
+    gdf = load.fetch_wfs_layer(
+        wfs=wfs,
+        layer_name=layer,
+        properties=props,
         srsname=crs_lambert,
-        maxfeatures = None, # None if no limit
-        outputFormat='application/json'
-    ) # Returns BytesIO (file-like object)
-
-    gdf = gpd.read_file(r)
-    gdf.set_index('id', inplace=True)
+        saving=True,
+        output_folder='../../Data/UrbIS'
+    )
     gdfs[layer] = gdf
-
-    file_name = f'../../Data/UrbIS/{layer.split(":")[1]}.feather'
-    gdf.to_feather(file_name)
-
-    end = time.time()
-    print(f'Time taken: {end - start:.2f} seconds')
-# %%
