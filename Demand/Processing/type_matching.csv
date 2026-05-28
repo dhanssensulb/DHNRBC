@@ -1,0 +1,35 @@
+TAG,TYPE
+apartments,Residential
+yes,Unknown
+office,Administration
+nan,Unknown
+house,Residential
+school,Education
+construction,Industrial
+industrial,Industrial
+guardhouse,Unknown
+hotel,Horeca
+retail,Commerce
+church,Culture and sport
+roof,None
+commercial,Commerce
+public,Unknown
+theatre,Culture and sport
+residential,Residential
+university,Education
+hospital,Health
+dormitory,Horeca
+government,Administration
+service,None
+station,Unknown
+cathedral,Culture and sport
+garage,Unknown
+civic,Unknown
+college,Education
+warehouse,Commerce
+ref,Unknown
+shed,None
+train_station,Unknown
+palace,Culture and sport
+temple,Culture and sport
+building,Unknown

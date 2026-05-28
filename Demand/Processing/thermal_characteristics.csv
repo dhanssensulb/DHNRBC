@@ -1,0 +1,16 @@
+TYPE,SPEC_SPACE_HEAT,SPEC_SPACE_COOL,SPEC_DHW
+Residential,47,0,3
+Industrial,0,10,26
+Commerce,56,66,5
+Horeca,93,36,14
+Transport and communication,195,55,5
+Banks and insurance,104,17,3
+Education,119,8,1
+Health,243,50,34
+Culture and sport,58,2,5
+Administration,150,18,4
+Agriculture,22,0,2
+Energy and water,92,11,4
+Other services,17,1,1
+Unknown,92,11,4
+None,0,0,0
