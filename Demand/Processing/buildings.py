@@ -30,8 +30,6 @@ urbis_folder = '../../Data/UrbIS'
 
 gdf_c, gdf_B, gdf_b, gdf_a = process.load_urbis_footprint(urbis_folder, mask=mask_pentagone)
 
-# gdf_nodes, gdf_edges = process.load_urbis_network(urbis_folder, mask=mask_pentagone)
-
 # OSM
 osm_folder = '../../Data/OSM'
 file_osm_buildings = osm_folder + '/Buildings.feather'
@@ -63,14 +61,11 @@ gdf_build = process.determine_building_type(gdf_build)
 gdf_build = process.estimate_thermal_characteristics(gdf_build)
 gdf_build = process.infer_cadastral_data(gdf_build, gdf_cad, binary_cols=['LISTED', 'GEOTHERMAL_ACCESS', 'AQUATHERMAL_ACCESS', 'RIOTHERMAL_ACCESS', 'FATAL_HEAT_ACCESS'])
 
-#%%
-
 gdf = process.group_urbis_footprint(gdf_cad, gdf_B, gdf_build, gdf_a)
 gdf = gdf.set_geometry('geometry_building')
 
-#%% 
-
 # Save dataframes in res
+
 gdf_build.to_feather('../Res/Buildings.feather')
 gdf_cad.to_feather('../Res/Cadastral.feather')
 # %%

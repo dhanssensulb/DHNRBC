@@ -10,6 +10,10 @@ Created on May 26
 import pandas as pd
 import geopandas as gpd
 from shapely.validation import make_valid
+from shapely.ops import snap, unary_union
+import momepy
+import neatnet
+import networkx as nx
 
 def load_gdf(file, layer=None, mask=None, min_overlap_ratio=0.5):
     """
@@ -159,6 +163,17 @@ def load_urbis_network(urbis_folder, mask=None):
     gdf_nodes = load_gdf(file_nodes, mask=mask)
     # Street edges
     file_edges = urbis_folder + '/StreetAxes.feather'
+    gdf_edges = load_gdf(file_edges, mask=mask)
+
+    return gdf_nodes, gdf_edges
+
+def load_osm_network(osm_folder, mask=None):
+    """
+    Load and clean the OSM network data.
+    """
+    file_nodes = osm_folder + '/Nodes.feather'
+    gdf_nodes = load_gdf(file_nodes, mask=mask)
+    file_edges = osm_folder + '/Edges.feather'
     gdf_edges = load_gdf(file_edges, mask=mask)
 
     return gdf_nodes, gdf_edges
@@ -328,3 +343,29 @@ def estimate_thermal_characteristics(gdf_build):
     gdf_build = gdf_build.merge(thermal_characteristics, on='TYPE', how='left')
 
     return gdf_build
+
+def clean_segments(gdf_edges, mask=None):
+
+    """
+    Clean and simplify the street segments.
+    """
+
+    # Explode multipart lines
+    gdf_edges = gdf_edges.explode().copy()
+    # Close gaps
+    gdf_edges = neatnet.close_gaps(gdf_edges.geometry, tolerance=1)
+    # Remove interstitial nodes
+    gdf_edges = neatnet.remove_interstitial_nodes(gdf_edges)
+    # Extend lines
+    gdf_edges = neatnet.extend_lines(gdf_edges, tolerance=1)
+    # Adaptive simplification
+    gdf_edges = neatnet.neatify(gdf_edges, exclusion_mask=mask)
+    # Remove the edges that cut through the mask
+    if mask is not None:
+        gdf_edges = gdf_edges[~gdf_edges.crosses(mask.union_all())]
+    # Extract nodes from the cleaned edges
+    G = momepy.gdf_to_nx(gdf_edges, directed=False)
+
+    gdf_nodes, gdf_edges = momepy.nx_to_gdf(G)
+
+    return gdf_edges, gdf_nodes

@@ -93,7 +93,7 @@ def fetch_osm_building_footprints(mask, crs='EPSG:4326', min_area=18, missing_th
 
     return buildings
 
-def fetch_osm_streets(mask, crs='EPSG:4326', saving=False, output_folder=None):
+def fetch_osm_streets(mask, crs='EPSG:4326', missing_threshold=0.5, saving=False, output_folder=None):
     """
     Fetch street data from OSM.
     """
@@ -107,6 +107,12 @@ def fetch_osm_streets(mask, crs='EPSG:4326', saving=False, output_folder=None):
 
     nodes = ox.graph_to_gdfs(G_streets, edges=False)
     edges = ox.graph_to_gdfs(G_streets, nodes=False)
+
+    # Keep only columns with less than 50% missing values
+    columns_to_keep_nodes = [col for col in nodes.columns if nodes[col].isna().mean() < missing_threshold]
+    columns_to_keep_edges = [col for col in edges.columns if edges[col].isna().mean() < missing_threshold]
+    nodes = nodes[columns_to_keep_nodes]
+    edges = edges[columns_to_keep_edges]
 
     if saving:
         print(f'Saving: OSM Streets')

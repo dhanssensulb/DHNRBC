@@ -24,3 +24,4 @@ mask_pentagone = gdf_pentagone.union_all()
 # Fetch OSM data within the Pentagone
 gdf_buildings = load.fetch_osm_building_footprints(mask_pentagone, crs=gdf_pentagone.crs, saving=True, output_folder='../../Data/OSM')
 gdf_nodes, gdf_edges = load.fetch_osm_streets(mask_pentagone, crs=gdf_pentagone.crs, saving=True, output_folder='../../Data/OSM')
+# %%
