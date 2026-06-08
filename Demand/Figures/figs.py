@@ -1,0 +1,148 @@
+# -*- coding: utf-8 -*-
+"""
+Created on June 26
+
+@author: hanssens
+"""
+
+#%%
+
+import settings
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+
+# For debugging
+import importlib
+importlib.reload(settings)
+
+# Fetch Macrozones from BISA WFS
+folder_bisa = '../../Data/BISA'
+file_macro = folder_bisa + '/StatisticalMacrozones.feather'
+
+gdf_macro = settings.load_gdf(file_macro)
+
+# Mask Pentagone
+gdf_pentagone = gdf_macro[gdf_macro.ma_code == 1]
+mask_pentagone = gdf_pentagone.union_all()
+
+mask_pentagone_extended = mask_pentagone.buffer(100) # Extend by 100m
+
+# Load Data
+data_folder = '../../Data'
+file_canal = data_folder + '/Vision_Zonee/01.CriteresAccessibilite/Canal_200m_split.shp'
+file_sewers = data_folder + '/Vision_Zonee/01.CriteresAccessibilite/riothermie.shp'
+
+gdf_canal = settings.load_gdf(file_canal, mask=mask_pentagone_extended)
+gdf_sewers = settings.load_gdf(file_sewers, mask=mask_pentagone_extended)
+
+# Load RES 
+res_folder = '../Res'
+file_buildings = res_folder + '/Buildings.feather'
+file_edges = res_folder + '/Edges.feather'
+file_nodes = res_folder + '/Nodes.feather'
+file_connections = res_folder + '/Connections.feather'
+
+gdf_buildings = settings.load_gdf(file_buildings)
+gdf_edges = settings.load_gdf(file_edges)
+gdf_nodes = settings.load_gdf(file_nodes)
+gdf_connections = settings.load_gdf(file_connections)
+
+def add_cbar(ax, color, values, label):
+    sm = plt.cm.ScalarMappable(cmap=color, norm=plt.Normalize(vmin=values.min(), vmax=values.max()))
+    cbar = fig.colorbar(sm, ax=ax, orientation='horizontal', fraction=0.03, pad=0.0)
+    cbar.set_label(label, fontsize=35)
+    cbar.ax.tick_params(labelsize=25)
+    cbar.outline.set_edgecolor('black')
+    cbar.outline.set_linewidth(1)
+
+def binary_cmap(color):
+    return ListedColormap([
+        "lightgrey",
+        color
+    ])
+
+out_folder = 'Out/'
+save = True
+
+# Building network
+fig, ax = plt.subplots()
+
+gdf_buildings.plot(ax=ax, color='lightgrey', edgecolor='black', linewidth=0.5)
+gdf_connections.plot(ax=ax, color='blue', alpha=0.5, linewidth=0.7)
+gdf_edges.plot(ax=ax, color='red', linewidth=1)
+gdf_nodes.plot(ax=ax, color='k', markersize=2, zorder=10)
+
+# Legend
+red_patch = plt.Line2D([0], [0], color='red', lw=2, label='Street Network')
+blue_patch = plt.Line2D([0], [0], color='blue', lw=2, label='Building-Street Connections')
+plt.legend(handles=[red_patch, blue_patch], loc='upper right')
+
+if save:
+    plt.savefig(out_folder + 'building_network.pdf', bbox_inches='tight')
+plt.show()
+
+# Building demand
+fig, axs = plt.subplots(1, 3, figsize=(60, 20))
+plt.subplots_adjust(wspace=-0.3)
+
+lw = 0.5
+
+gdf_buildings.plot(ax=axs[0], column='SPEC_DHW', cmap='Oranges', edgecolor='black', linewidth=lw)
+axs[0].set_title('Domestic Hot Water Demand')
+add_cbar(axs[0], 'Oranges', gdf_buildings['SPEC_DHW'], r'$\frac{kWh}{m^2 \cdot year}$')
+
+gdf_buildings.plot(ax=axs[1], column='SPEC_SPACE_HEAT', cmap='Reds', edgecolor='black', linewidth=lw)
+axs[1].set_title('Space Heating Demand')
+add_cbar(axs[1], 'Reds', gdf_buildings['SPEC_SPACE_HEAT'], r'$\frac{kWh}{m^2 \cdot year}$')
+
+gdf_buildings.plot(ax=axs[2], column='SPEC_SPACE_COOL', cmap='Blues', edgecolor='black', linewidth=lw)
+axs[2].set_title('Space Cooling Demand')
+add_cbar(axs[2], 'Blues', gdf_buildings['SPEC_SPACE_COOL'], r'$\frac{kWh}{m^2 \cdot year}$')
+
+if save:
+    plt.savefig(out_folder + 'building_demand.pdf', bbox_inches='tight')
+plt.show()
+
+# Building resources
+fig, axs = plt.subplots(1, 4, figsize=(80, 20))
+plt.subplots_adjust(wspace=-0.3)
+
+gdf_buildings.plot(ax=axs[0], column='GEOTHERMAL_ACCESS', cmap=binary_cmap('orange'))
+axs[0].set_title('Geothermal Access')
+
+gdf_buildings.plot(ax=axs[1], column='AQUATHERMAL_ACCESS', cmap=binary_cmap('blue'))
+gdf_canal.plot(ax=axs[1], color='lightblue', label='Canal')
+axs[1].set_title('Aquathermal Access')
+
+gdf_buildings.plot(ax=axs[2], column='RIOTHERMAL_ACCESS', cmap=binary_cmap('green'))
+gdf_sewers.plot(ax=axs[2], color='darkgreen', linewidth=2, label='Sewers')
+axs[2].set_title('Riothermal Access')
+
+gdf_buildings.plot(ax=axs[3], column='FATAL_HEAT_ACCESS', cmap=binary_cmap('red'))
+axs[3].set_title('Fatal Heat Access')
+
+if save:
+    plt.savefig(out_folder + 'building_resources.pdf', bbox_inches='tight')
+plt.show()
+
+# Building features
+fig, axs = plt.subplots(1, 2, figsize=(40, 20))
+plt.subplots_adjust(wspace=-0.2)
+
+gdf_buildings.plot(ax=axs[1], column='LISTED', cmap=binary_cmap('purple'))
+axs[1].set_title('Listed Buildings')
+
+gdf_buildings.plot(ax=axs[0], column='TYPE', cmap='tab10', legend=True)
+axs[0].set_title('Building Type')
+
+legend = axs[0].get_legend()
+handles = legend.legend_handles
+labels = [t.get_text() for t in legend.get_texts()]
+legend.remove()
+
+fig.legend(handles, labels, loc='lower right', bbox_to_anchor=(0.58, 0.12), fontsize=25, ncol=2)
+
+if save:
+    plt.savefig(out_folder + 'building_architecture.pdf', bbox_inches='tight')
+plt.show()
+# %%

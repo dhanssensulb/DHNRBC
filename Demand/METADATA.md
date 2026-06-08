@@ -7,12 +7,15 @@
   - Load Parcels and buildings
   - Load Administrative units
   - Load Transport networks
-  - (Load Point of interest)
 
 - BruGIS - urban.brussels
   - Load Heritage
   - Load Legal inventory
   - Load segments and nodes
+
+- OSM
+
+- SitEx
   
 # Heritage and Legal inventory (CoBAT)
 

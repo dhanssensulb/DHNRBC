@@ -41,9 +41,6 @@ file_buildings = res_folder + '/Buildings.feather'
 
 gdf_buildings = process.load_gdf(file_buildings)
 
-#%%
-importlib.reload(process)
-
 # Clean segments
 gdf_edges, gdf_nodes = process.clean_segments(gdf_edges_urbis, mask=gdf_buildings.geometry)
 

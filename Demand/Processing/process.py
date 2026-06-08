@@ -10,7 +10,9 @@ Created on May 26
 import pandas as pd
 import geopandas as gpd
 from shapely.validation import make_valid
-from shapely.ops import snap, unary_union
+from shapely.ops import snap, unary_union, polygonize, nearest_points
+from shapely.geometry import LineString
+from tqdm import tqdm
 import momepy
 import neatnet
 import networkx as nx
@@ -363,9 +365,136 @@ def clean_segments(gdf_edges, mask=None):
     # Remove the edges that cut through the mask
     if mask is not None:
         gdf_edges = gdf_edges[~gdf_edges.crosses(mask.union_all())]
+
     # Extract nodes from the cleaned edges
     G = momepy.gdf_to_nx(gdf_edges, directed=False)
-
     gdf_nodes, gdf_edges = momepy.nx_to_gdf(G)
 
+    # Rename columns and keep only necessary ones
+    gdf_nodes = gdf_nodes.rename(columns={'nodeID': 'NODE_ID'})[['NODE_ID', 'geometry']]
+    gdf_edges = gdf_edges.reset_index(drop=False).rename(columns={'index': 'EDGE_ID'})
+    gdf_edges = gdf_edges.rename(columns={'node_start': 'NODE_START', 'node_end': 'NODE_END'})[['EDGE_ID', 'NODE_START', 'NODE_END', 'geometry']]
+
     return gdf_edges, gdf_nodes
+
+def connect_buildings_to_streets(gdf_buildings, gdf_edges, gdf_nodes, n_length_threshold=5):
+    """
+    Connect buildings to the nearest street segments.
+    """
+
+    buildings = gdf_buildings.copy()
+    edges = gdf_edges.copy()
+    nodes = gdf_nodes.copy()
+
+    def build_blocks(edges):
+        """
+        Return the street blocks (faces of the network).        
+        """
+        blocks = gpd.GeoDataFrame(
+            geometry=list(polygonize(edges.geometry.union_all())),
+            crs=edges.crs
+        )
+        return blocks
+
+    def valid_connection(line, building, target_edge):
+        """
+        Check if a connection line is valid based on the following criteria:
+        - The line must not cross any other building.
+        - The line must not cross any other edge.
+        - The line must not touch any node.
+        """
+        # TODO: Check if the line is a line and not a point (in case the building is already touching the edge)
+        
+        touching_buildings = buildings[buildings.geometry.crosses(line)]
+        touching_buildings = touching_buildings[touching_buildings.geometry != building] # Exclude the building itself
+        if len(touching_buildings) > 0:
+            return False
+
+        touching_edges = edges[edges.geometry.crosses(line)]
+        touching_edges = touching_edges[touching_edges.geometry != target_edge] # Exclude the target edge
+        if len(touching_edges) > 0:
+            return False
+
+        touching_nodes = nodes[nodes.geometry.touches(line)]
+        if len(touching_nodes) > 0:
+            return False
+
+        return True
+    
+    blocks = build_blocks(edges)
+    connections = []
+
+    # For each building, find the nearest edge and create a connection line
+    for b_idx, b in tqdm(buildings.iterrows(), total=len(buildings)):
+        b_geom = b.geometry
+        block = blocks[blocks.geometry.contains(b_geom)] # Should be only one block
+
+        if block.empty:
+            # fallback: nearest edge
+            print(f"No block found for building {b_idx}, using nearest edge as fallback.")
+            e_idx = edges.distance(b_geom).idxmin()
+            e_geom = edges.loc[e_idx].geometry
+            p1, p2 = nearest_points(b_geom, e_geom)
+            line = LineString([p1, p2])
+            if valid_connection(line, b_geom, e_geom):
+                conn = {'B_IDX': b_idx, 'BUILDING_ID': b.BUILDING_ID, 'EDGE_ID': e.EDGE_ID, 'length': line.length, 'geometry': line}
+                connections.append(conn)
+            continue
+
+        block_geom = block.iloc[0].geometry # Get the block geometry
+
+        # Find candidate edges that intersect the block bounding box (fast preselection)
+        cand_e_idx = list(edges.sindex.intersection(block_geom.bounds))
+        cand_edges = edges.loc[cand_e_idx]
+        # Keep only edges that truly overlap boundary of the polygon block
+        eps = 1e-6
+        cand_edges = cand_edges[cand_edges.geometry.within(block_geom.buffer(eps))]
+
+        for e_idx, e in cand_edges.iterrows():
+            e_geom = e.geometry
+            p1, p2 = nearest_points(b_geom, e_geom)
+            line = LineString([p1, p2])
+            if valid_connection(line, b_geom, e_geom):
+                conn = {'B_IDX': b_idx, 'BUILDING_ID': b.BUILDING_ID, 'EDGE_ID': e.EDGE_ID, 'length': line.length, 'geometry': line}
+                connections.append(conn)
+    
+    # For each buildings, remove connections that are n times longer than the shortest connection for that building
+    if n_length_threshold is not None:
+        for b_idx in buildings.index:
+            b_connections = [conn for conn in connections if conn['B_IDX'] == b_idx]
+            if b_connections:
+                min_length = min(conn['length'] for conn in b_connections)
+                for c in b_connections:
+                    if c['length'] > n_length_threshold * min_length:
+                        connections.remove(c)
+
+    # Convert connections to GeoDataFrame
+    gdf_connections = gpd.GeoDataFrame(connections, geometry='geometry', crs=buildings.crs)
+    connected_buildings = set(gdf_connections['B_IDX'])
+
+    # For buildings with empty connections, copy the connections of the nearest connected building
+    for b_idx, b in buildings.iterrows():
+        b_geom = b.geometry
+        if b_idx in connected_buildings:
+            continue
+        print(f"Building {b_idx} has no valid connections, copying from nearest connected building.")
+        # Find the nearest connection
+        nearest_conn_idx = gdf_connections.distance(b_geom).idxmin()
+        nearest_conn = gdf_connections.loc[nearest_conn_idx]
+        # Copy the connection(s) and update the building index to the current building
+        new_conns = nearest_conn.copy()
+        new_conns['B_IDX'] = b_idx
+        # Add each new connection to the connections list and GeoDataFrame
+        connections.append(new_conns.to_dict())
+    
+    # Update the connections GeoDataFrame with the new connections
+    gdf_connections = gpd.GeoDataFrame(connections, geometry='geometry', crs=buildings.crs)
+    gdf_connections = gdf_connections.drop(columns=['B_IDX', 'length'])
+
+    return gdf_connections
+
+if __name__ == "__main__":
+    # Run the code for all components
+    import buildings
+    import segments
+    import connections
