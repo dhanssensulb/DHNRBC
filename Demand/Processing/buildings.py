@@ -61,7 +61,10 @@ gdf_peb = process.load_gdf(file_peb_public)
 # Group and aggregate data
 
 gdf_cad = process.aggregate_cadastral_data(gdf_c, gdf_v)
-gdf_build = process.aggregate_building_data(gdf_b, gdf_osm_buildings, gdf_sitex, gdf_h, gdf_i)
+gdf_build = process.aggregate_building_data(
+    gdf_b, gdf_osm_buildings, gdf_sitex,
+    gdf_h, gdf_i, gdf_peb
+)
 
 gdf_build = process.determine_building_type(gdf_build)
 gdf_build = process.estimate_thermal_characteristics(gdf_build)
@@ -69,7 +72,7 @@ gdf_build = process.estimate_thermal_characteristics(gdf_build)
 gdf_build = process.infer_cadastral_data(gdf_build, gdf_cad, binary_cols=['LISTED', 'GEOTHERMAL_ACCESS', 'AQUATHERMAL_ACCESS', 'RIOTHERMAL_ACCESS', 'FATAL_HEAT_ACCESS'])
 
 # Remove unhabited buildings
-mask_unhabited = (gdf_build.TYPE.isna()) | (gdf_build.area < 18)
+mask_unhabited = (gdf_build.TYPE.isna()) | (gdf_build.FLOOR_AREA < 18)
 gdf_build = gdf_build[~mask_unhabited]
 
 gdf = process.group_urbis_footprint(gdf_cad, gdf_B, gdf_build, gdf_a)

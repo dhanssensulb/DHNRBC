@@ -220,7 +220,7 @@ def aggregate_cadastral_data(gdf_c, gdf_v, association_threshold=0.5):
 
     return result
 
-def aggregate_building_data(gdf_b, gdf_osm, gdf_sitex, gdf_h, gdf_i, association_threshold=0.5):
+def aggregate_building_data(gdf_b, gdf_osm, gdf_sitex, gdf_h, gdf_i, gdf_peb, association_threshold=0.5):
     """
     Aggregate building data from UrbIS and OSM based on spatial overlap.
     A building from UrbIS is associated with a building from OSM if the overlap area is at least `association_threshold` of the UrbIS building area.
@@ -230,6 +230,7 @@ def aggregate_building_data(gdf_b, gdf_osm, gdf_sitex, gdf_h, gdf_i, association
     best_osm = best_overlap_match(gdf_b, gdf_osm, id_col='BUILDING_ID', target_cols=['building'], threshold=association_threshold)
     best_sitex = best_overlap_match(gdf_b, gdf_sitex, id_col='BUILDING_ID', target_cols=['level_all', 'sp', 'type'], threshold=association_threshold)
     best_heritage = best_overlap_match(gdf_b, gdf_h, id_col='BUILDING_ID', target_cols=['MS'], threshold=association_threshold)
+    best_peb = gdf_peb.sjoin_nearest(gdf_b[['BUILDING_ID', 'geometry']], how='left', max_distance=10)
 
     # Merge the best associations back to the original UrbIS building GeoDataFrame
     result = gdf_b.merge(best_osm, on='BUILDING_ID', how='left')
@@ -244,8 +245,17 @@ def aggregate_building_data(gdf_b, gdf_osm, gdf_sitex, gdf_h, gdf_i, association
     result['HERITAGE'] = result['MS'].notna().astype(int)
     result = result.drop(columns=['MS'])
 
+    result = result.merge(best_peb[['NRJ_IDX', 'PEB_AREA', 'BUILDING_ID']], on='BUILDING_ID', how='left')
+    # print(gpd.sjoin(result, gdf_peb[['NRJ_IDX', 'geometry']], how='left', predicate='within').drop(columns='index_right'))
+
     # Clean up
-    result = result.rename(columns={'building': 'osm_type', 'type': 'sitex_type', 'level_all': 'MAX_LEVEL', 'sp': 'FLOOR_AREA'})
+    result = result.rename(
+        columns={
+            'building': 'osm_type', 'type': 'sitex_type',
+            'level_all': 'MAX_LEVEL', 'sp': 'FLOOR_AREA',
+            'NRJ_IDX': 'PEB_NRJ'
+        }
+    )
     result['FLOOR_AREA'] = result['FLOOR_AREA'].fillna(result.geometry.area)
     result = result.fillna({'osm_type': 'yes', 'sitex_type' : 'building', 'INVENTORY': 0, 'HERITAGE': 0})
 
