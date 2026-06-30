@@ -30,9 +30,11 @@ mask_pentagone_extended = mask_pentagone.buffer(100) # Extend by 100m
 # Load Data
 data_folder = '../../Data'
 file_canal = data_folder + '/Vision_Zonee/01.CriteresAccessibilite/Canal_200m_split.shp'
+file_senne = data_folder + '/Vision_Zonee/01.CriteresAccessibilite/Zenne_open_and_covered.shp'
 file_sewers = data_folder + '/Vision_Zonee/01.CriteresAccessibilite/riothermie.shp'
 
 gdf_canal = settings.load_gdf(file_canal, mask=mask_pentagone_extended)
+gdf_senne = settings.load_gdf(file_senne, mask=mask_pentagone_extended)
 gdf_sewers = settings.load_gdf(file_sewers, mask=mask_pentagone_extended)
 
 # Load RES 
@@ -79,6 +81,7 @@ plt.legend(handles=[red_patch, blue_patch], loc='upper right')
 
 if save:
     plt.savefig(out_folder + 'building_network.pdf', bbox_inches='tight')
+    plt.savefig(out_folder + 'building_network.png', bbox_inches='tight')
 plt.show()
 
 # Building demand
@@ -101,6 +104,7 @@ add_cbar(axs[2], 'Blues', gdf_buildings['SPEC_SPACE_COOL'], r'$\frac{kWh}{m^2 \c
 
 if save:
     plt.savefig(out_folder + 'building_demand.pdf', bbox_inches='tight')
+    plt.savefig(out_folder + 'building_demand.png', bbox_inches='tight')
 plt.show()
 
 # Building resources
@@ -112,6 +116,7 @@ axs[0].set_title('Geothermal Access')
 
 gdf_buildings.plot(ax=axs[1], column='AQUATHERMAL_ACCESS', cmap=binary_cmap('blue'))
 gdf_canal.plot(ax=axs[1], color='lightblue', label='Canal')
+gdf_senne.plot(ax=axs[1], color='lightblue', label='Senne')
 axs[1].set_title('Aquathermal Access')
 
 gdf_buildings.plot(ax=axs[2], column='RIOTHERMAL_ACCESS', cmap=binary_cmap('green'))
@@ -123,6 +128,7 @@ axs[3].set_title('Fatal Heat Access')
 
 if save:
     plt.savefig(out_folder + 'building_resources.pdf', bbox_inches='tight')
+    plt.savefig(out_folder + 'building_resources.png', bbox_inches='tight')
 plt.show()
 
 # Building features
@@ -144,5 +150,6 @@ fig.legend(handles, labels, loc='lower right', bbox_to_anchor=(0.58, 0.12), font
 
 if save:
     plt.savefig(out_folder + 'building_architecture.pdf', bbox_inches='tight')
+    plt.savefig(out_folder + 'building_architecture.png', bbox_inches='tight')
 plt.show()
 # %%

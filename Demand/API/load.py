@@ -35,15 +35,20 @@ def fetch_wfs_layer(wfs, layer_name, properties=None, srsname=None, maxfeatures=
     print(f'Fetching: {layer_name}')
     start = time.time()
 
-    r = wfs.getfeature(
-        typename=layer_name,
-        propertyname=properties, # Fetch all properties
-        srsname=srsname, # Coordinate Reference System (CRS)
-        maxfeatures=maxfeatures,
-        outputFormat='application/json'
-    ) # BytesIO (file-like object)
-    gdf = gpd.read_file(r)
-    gdf.set_index('id', inplace=True)
+    try:
+        r = wfs.getfeature(
+            typename=layer_name,
+            propertyname=properties, # Fetch all properties
+            srsname=srsname, # Coordinate Reference System (CRS)
+            maxfeatures=maxfeatures,
+            outputFormat='application/json'
+        ) # BytesIO (file-like object)
+    
+        gdf = gpd.read_file(r)
+        gdf.set_index('id', inplace=True)
+    except Exception as e:
+        print(f"Error fetching layer {layer_name}: {e}\n")
+        return None
 
     if saving:
         print(f'Saving: {layer_name}')
@@ -58,11 +63,11 @@ def fetch_wfs_layer(wfs, layer_name, properties=None, srsname=None, maxfeatures=
         gdf.to_feather(file_name)
 
     end = time.time()
-    print(f'Time taken: {end - start:.2f} seconds')
+    print(f'Time taken: {end - start:.2f} seconds\n')
 
     return gdf
 
-def fetch_osm_building_footprints(mask, crs='EPSG:4326', min_area=18, missing_threshold=0.5, saving=False, output_folder=None):
+def fetch_osm_building_footprints(mask, crs='EPSG:4326', missing_threshold=0.5, saving=False, output_folder=None):
     """
     Fetch building footprints from OSM.
     """
@@ -76,8 +81,6 @@ def fetch_osm_building_footprints(mask, crs='EPSG:4326', min_area=18, missing_th
     buildings = ox.features_from_polygon(mask_wgs84, tags=tags_buildings) # WGS 84
     buildings = ox.projection.project_gdf(buildings, to_crs=crs) # Reproject to specified CRS
 
-    # Keep only buildings with > min_area area
-    buildings = buildings[buildings.geometry.area > min_area]
     # Keep then only columns with less than 50% missing values
     columns_to_keep = [col for col in buildings.columns if buildings[col].isna().mean() < missing_threshold]
     buildings = buildings[columns_to_keep]
@@ -89,7 +92,7 @@ def fetch_osm_building_footprints(mask, crs='EPSG:4326', min_area=18, missing_th
         buildings.to_feather(f'{output_folder}/Buildings.feather')
 
     end = time.time()
-    print(f'Time taken: {end - start:.2f} seconds')
+    print(f'Time taken: {end - start:.2f} seconds\n')
 
     return buildings
 
@@ -122,7 +125,7 @@ def fetch_osm_streets(mask, crs='EPSG:4326', missing_threshold=0.5, saving=False
         edges.to_feather(f'{output_folder}/Edges.feather')
 
     end = time.time()
-    print(f'Time taken: {end - start:.2f} seconds')
+    print(f'Time taken: {end - start:.2f} seconds\n')
 
     return nodes, edges
 
@@ -148,3 +151,4 @@ if __name__ == "__main__":
     import urbis
     import brugis
     import osm # OSM must be run after BISA as it requires the Pentagone mask
+# %%
