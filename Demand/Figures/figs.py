@@ -10,6 +10,9 @@ Created on June 26
 import settings
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+import cartopy
+import cartopy.crs as ccrs
 
 # For debugging
 import importlib
@@ -65,6 +68,89 @@ def binary_cmap(color):
 
 out_folder = 'Out/'
 save = True
+
+#%%
+
+fig = plt.figure(figsize=(5, 5))
+
+bcr = gdf_macro.dissolve().to_crs(epsg=4326)  # Convert to WGS84 (EPSG:4326) for plotting
+
+ax = plt.axes(projection=ccrs.PlateCarree())
+ax.set_extent([2.2, 6.8, 49.2, 51.8], crs=ccrs.PlateCarree())
+
+ax.add_feature(cartopy.feature.OCEAN, facecolor='lightblue')
+ax.add_feature(cartopy.feature.LAND, facecolor='lightgreen')
+ax.add_feature(cartopy.feature.BORDERS, edgecolor='black', linewidth=1)
+ax.coastlines(linewidth=1.5)
+
+gl = ax.gridlines(draw_labels=True, linewidth=1, color='gray', alpha=0.5, linestyle='--')
+gl.top_labels = False
+gl.right_labels = False
+
+gl.xlabel_style = {'size': 10}
+gl.ylabel_style = {'size': 10}
+
+bcr.plot(ax=ax, facecolor='darkgreen', alpha=0.5, transform=ccrs.PlateCarree())
+bcr.plot(ax=ax, facecolor='none', edgecolor='black', linewidth=0.5, transform=ccrs.PlateCarree())
+
+inset_rect = (0.5, 0.17, 0.38, 0.38)  # (x0, y0, width, height)
+
+bg_ax = fig.add_axes(inset_rect, transform=ax.transAxes, facecolor='lightgreen', zorder=9)
+for spine in bg_ax.spines.values():
+    spine.set_visible(True)
+    spine.set_edgecolor('black')
+    spine.set_linewidth(1.5)
+
+pentagone = gdf_macro.query("ma_id == 1")
+macro = gdf_macro.copy()
+bcr = gdf_macro.dissolve()
+
+macro.plot(ax=bg_ax, facecolor='darkgreen', edgecolor='black', linewidth=0.5, alpha=0.5)
+pentagone.plot(ax=bg_ax, facecolor='darkgreen', edgecolor='black', linewidth=1, alpha=1)
+bcr.plot(ax=bg_ax, facecolor='none', edgecolor='black', linewidth=1.5)
+
+if save:
+    plt.savefig(out_folder + 'brussels_belgium.png', format='png', dpi=300, bbox_inches='tight', transparent=True)
+    plt.savefig(out_folder + 'brussels_belgium.pdf', bbox_inches='tight')
+plt.show()
+
+# Buildings Raw - UrbIS
+fig, ax = plt.subplots(figsize=(5, 5))
+
+gdf_buildings.plot(ax=ax, color='lightgrey', edgecolor='black', linewidth=0.2)
+
+if save:
+    plt.savefig(out_folder + 'buildings_raw.png', format='png', dpi=300, bbox_inches='tight', transparent=True)
+plt.show()
+
+# Buildings Type - OSM + SitEx
+fig, ax = plt.subplots(figsize=(5, 5))
+
+gdf_buildings.plot(ax=ax, column='TYPE', cmap='tab10')
+
+if save:
+    plt.savefig(out_folder + 'buildings_type.png', format='png', dpi=300, bbox_inches='tight', transparent=True)
+plt.show()
+
+# Buildings Floor area - SitEx
+fig, ax = plt.subplots(figsize=(5, 5))
+
+gdf_buildings.plot(ax=ax, column='FLOOR_AREA', cmap='Purples')
+
+if save:
+    plt.savefig(out_folder + 'buildings_area.png', format='png', dpi=300, bbox_inches='tight', transparent=True)
+plt.show()
+
+# Buildings Listed - BruGIS
+fig, ax = plt.subplots(figsize=(5, 5))
+
+gdf_buildings.plot(ax=ax, column='LISTED', cmap=binary_cmap('orange'))
+
+if save:
+    plt.savefig(out_folder + 'buildings_listed.png', format='png', dpi=300, bbox_inches='tight', transparent=True)
+plt.show()
+
+#%%
 
 # Building network
 fig, ax = plt.subplots()

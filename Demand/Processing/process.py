@@ -520,3 +520,4 @@ if __name__ == "__main__":
     import buildings
     import segments
     import connections
+# %%

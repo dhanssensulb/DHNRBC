@@ -1,5 +1,1 @@
-- Clean load and process files
-- Manage missing values in buildings
-- Correct errors in connections
-- Add weather files (2025, 2030, 2035, 2040, 2045, 2050) - unchanged specific demand ? adapt alpha ?
-- Make draw.io organigrams
+- Clean listed buildings
