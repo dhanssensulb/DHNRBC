@@ -44,8 +44,7 @@ gdf_buildings = process.load_gdf(file_buildings)
 # Clean segments
 gdf_edges, gdf_nodes = process.clean_segments(gdf_edges_urbis, mask=gdf_buildings.geometry)
 
-# Save dataframes in res
-
+# Save dataframes in RES
 gdf_edges.to_feather('../Res/Edges.feather')
 gdf_nodes.to_feather('../Res/Nodes.feather')
 # %%

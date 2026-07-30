@@ -12,6 +12,7 @@ import os
 import geopandas as gpd
 from owslib.wfs import WebFeatureService
 import osmnx as ox
+from shapely.validation import make_valid
 
 def connect_to_wfs(url, version='2.0.0', verbose=True):
     """
@@ -81,9 +82,12 @@ def fetch_osm_building_footprints(mask, crs='EPSG:4326', missing_threshold=0.5, 
     buildings = ox.features_from_polygon(mask_wgs84, tags=tags_buildings) # WGS 84
     buildings = ox.projection.project_gdf(buildings, to_crs=crs) # Reproject to specified CRS
 
-    # Keep then only columns with less than 50% missing values
+    # Keep then only columns with less than {missing_threshold*100}% missing values
     columns_to_keep = [col for col in buildings.columns if buildings[col].isna().mean() < missing_threshold]
     buildings = buildings[columns_to_keep]
+
+    # Keep only polygons and multipolygons
+    buildings = buildings[buildings.geometry.type.isin(['Polygon', 'MultiPolygon'])]
 
     if saving:
         print(f'Saving: OSM Building Footprints')
@@ -111,7 +115,7 @@ def fetch_osm_streets(mask, crs='EPSG:4326', missing_threshold=0.5, saving=False
     nodes = ox.graph_to_gdfs(G_streets, edges=False)
     edges = ox.graph_to_gdfs(G_streets, nodes=False)
 
-    # Keep only columns with less than 50% missing values
+    # Keep only columns with less than {missing_threshold*100}% missing values
     columns_to_keep_nodes = [col for col in nodes.columns if nodes[col].isna().mean() < missing_threshold]
     columns_to_keep_edges = [col for col in edges.columns if edges[col].isna().mean() < missing_threshold]
     nodes = nodes[columns_to_keep_nodes]
@@ -129,13 +133,21 @@ def fetch_osm_streets(mask, crs='EPSG:4326', missing_threshold=0.5, saving=False
 
     return nodes, edges
 
-def load_gdf(file, mask=None, min_overlap_ratio=0.5):
+def load_gdf(file, layer=None, mask=None, min_overlap_ratio=0.5):
     """
     Load a GeoDataFrame from a file, optionally applying a spatial mask.
     A polygon belongs to the masked GeoDataFrame if at least `min_overlap_ratio` of its area overlaps with the mask.
     For non-polygon geometries, they are included if they are within the mask.
     """
-    gdf = gpd.read_feather(file) if file.endswith('.feather') else gpd.read_file(file)
+    if file.endswith('.feather'):
+        gdf = gpd.read_feather(os.path.abspath(file))
+    else:
+        gdf = gpd.read_file(os.path.abspath(file), layer=layer) if layer else gpd.read_file(os.path.abspath(file))
+    
+    # Removes null geometries and repairs invalid geometries
+    gdf = gdf.dropna(subset=['geometry']).reset_index(drop=True)
+    gdf.geometry = gdf.geometry.apply(make_valid)
+
     if mask:
         geom_type = gdf.geometry.geom_type.unique()
         if geom_type[0] in ['Polygon', 'MultiPolygon']:

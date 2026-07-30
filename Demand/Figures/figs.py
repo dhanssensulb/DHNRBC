@@ -11,6 +11,9 @@ import settings
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+import matplotlib.colors as colors
+import matplotlib.patches as mpatches
+import matplotlib.lines as mlines
 import cartopy
 import cartopy.crs as ccrs
 
@@ -43,11 +46,13 @@ gdf_sewers = settings.load_gdf(file_sewers, mask=mask_pentagone_extended)
 # Load RES 
 res_folder = '../Res'
 file_buildings = res_folder + '/Buildings.feather'
+file_buildings_demand = res_folder + '/Buildings_Demand.feather'
 file_edges = res_folder + '/Edges.feather'
 file_nodes = res_folder + '/Nodes.feather'
 file_connections = res_folder + '/Connections.feather'
 
 gdf_buildings = settings.load_gdf(file_buildings)
+gdf_buildings_demand = settings.load_gdf(file_buildings_demand)
 gdf_edges = settings.load_gdf(file_edges)
 gdf_nodes = settings.load_gdf(file_nodes)
 gdf_connections = settings.load_gdf(file_connections)
@@ -79,7 +84,7 @@ ax = plt.axes(projection=ccrs.PlateCarree())
 ax.set_extent([2.2, 6.8, 49.2, 51.8], crs=ccrs.PlateCarree())
 
 ax.add_feature(cartopy.feature.OCEAN, facecolor='lightblue')
-ax.add_feature(cartopy.feature.LAND, facecolor='lightgreen')
+ax.add_feature(cartopy.feature.LAND, facecolor='white')
 ax.add_feature(cartopy.feature.BORDERS, edgecolor='black', linewidth=1)
 ax.coastlines(linewidth=1.5)
 
@@ -90,12 +95,12 @@ gl.right_labels = False
 gl.xlabel_style = {'size': 10}
 gl.ylabel_style = {'size': 10}
 
-bcr.plot(ax=ax, facecolor='darkgreen', alpha=0.5, transform=ccrs.PlateCarree())
+bcr.plot(ax=ax, facecolor='chocolate', alpha=0.5, transform=ccrs.PlateCarree())
 bcr.plot(ax=ax, facecolor='none', edgecolor='black', linewidth=0.5, transform=ccrs.PlateCarree())
 
 inset_rect = (0.5, 0.17, 0.38, 0.38)  # (x0, y0, width, height)
 
-bg_ax = fig.add_axes(inset_rect, transform=ax.transAxes, facecolor='lightgreen', zorder=9)
+bg_ax = fig.add_axes(inset_rect, transform=ax.transAxes, facecolor='white', zorder=9)
 for spine in bg_ax.spines.values():
     spine.set_visible(True)
     spine.set_edgecolor('black')
@@ -105,14 +110,16 @@ pentagone = gdf_macro.query("ma_id == 1")
 macro = gdf_macro.copy()
 bcr = gdf_macro.dissolve()
 
-macro.plot(ax=bg_ax, facecolor='darkgreen', edgecolor='black', linewidth=0.5, alpha=0.5)
-pentagone.plot(ax=bg_ax, facecolor='darkgreen', edgecolor='black', linewidth=1, alpha=1)
+macro.plot(ax=bg_ax, facecolor='chocolate', edgecolor='black', linewidth=0.5, alpha=0.5)
+pentagone.plot(ax=bg_ax, facecolor='chocolate', edgecolor='black', linewidth=1, alpha=1)
 bcr.plot(ax=bg_ax, facecolor='none', edgecolor='black', linewidth=1.5)
 
 if save:
     plt.savefig(out_folder + 'brussels_belgium.png', format='png', dpi=300, bbox_inches='tight', transparent=True)
     plt.savefig(out_folder + 'brussels_belgium.pdf', bbox_inches='tight')
 plt.show()
+
+#%%
 
 # Buildings Raw - UrbIS
 fig, ax = plt.subplots(figsize=(5, 5))
@@ -150,12 +157,21 @@ if save:
     plt.savefig(out_folder + 'buildings_listed.png', format='png', dpi=300, bbox_inches='tight', transparent=True)
 plt.show()
 
+# Buildings Resources
+fig, ax = plt.subplots(figsize=(5, 5))
+
+gdf_buildings.plot(ax=ax, column='RIOTHERMAL_ACCESS', cmap=binary_cmap('green'))
+gdf_sewers.plot(ax=ax, color='darkgreen', linewidth=1, label='Sewers')
+
+if save:
+    plt.savefig(out_folder + 'buildings_access.png', format='png', dpi=300, bbox_inches='tight', transparent=True)
+plt.show()
 #%%
 
 # Building network
 fig, ax = plt.subplots()
 
-gdf_buildings.plot(ax=ax, color='lightgrey', edgecolor='black', linewidth=0.5)
+gdf_buildings.plot(ax=ax, color='lightgrey', edgecolor='grey', linewidth=0.2)
 gdf_connections.plot(ax=ax, color='blue', alpha=0.5, linewidth=0.7)
 gdf_edges.plot(ax=ax, color='red', linewidth=1)
 gdf_nodes.plot(ax=ax, color='k', markersize=2, zorder=10)
@@ -217,6 +233,45 @@ if save:
     plt.savefig(out_folder + 'building_resources.png', bbox_inches='tight')
 plt.show()
 
+# Geothermal access
+fig, ax = plt.subplots()
+gdf_buildings.plot(ax=ax, column='GEOTHERMAL_ACCESS', cmap=binary_cmap('orange'))
+if save:
+    plt.savefig(out_folder + 'building_geothermal_access.pdf', bbox_inches='tight')
+    plt.savefig(out_folder + 'building_geothermal_access.png', bbox_inches='tight')
+plt.show()
+
+# Aquathermal access
+fig, ax = plt.subplots()
+gdf_buildings.plot(ax=ax, column='AQUATHERMAL_ACCESS', cmap=binary_cmap('blue'))
+gdf_canal.plot(ax=ax, color='lightblue', label='Canal')
+gdf_senne.plot(ax=ax, color='lightblue', label='Senne')
+canal_patch = mpatches.Patch(color='lightblue', label='Canal')
+senne_line = mlines.Line2D([], [], color='lightblue', label='Senne')
+ax.legend(handles=[canal_patch, senne_line], loc='upper right')
+if save:
+    plt.savefig(out_folder + 'building_aquathermal_access.pdf', bbox_inches='tight')
+    plt.savefig(out_folder + 'building_aquathermal_access.png', bbox_inches='tight')
+plt.show()
+
+# Riothermal access
+fig, ax = plt.subplots()
+gdf_buildings.plot(ax=ax, column='RIOTHERMAL_ACCESS', cmap=binary_cmap('green'))
+gdf_sewers.plot(ax=ax, color='darkgreen', linewidth=2, label='Sewers')
+ax.legend(loc='upper right')
+if save:
+    plt.savefig(out_folder + 'building_riothermal_access.pdf', bbox_inches='tight')
+    plt.savefig(out_folder + 'building_riothermal_access.png', bbox_inches='tight')
+plt.show()
+
+# Fatal heat access
+fig, ax = plt.subplots()
+gdf_buildings.plot(ax=ax, column='FATAL_HEAT_ACCESS', cmap=binary_cmap('red'))
+if save:
+    plt.savefig(out_folder + 'building_fatal_heat_access.pdf', bbox_inches='tight')
+    plt.savefig(out_folder + 'building_fatal_heat_access.png', bbox_inches='tight')
+plt.show()
+
 # Building features
 fig, axs = plt.subplots(1, 2, figsize=(40, 20))
 plt.subplots_adjust(wspace=-0.2)
@@ -238,4 +293,41 @@ if save:
     plt.savefig(out_folder + 'building_architecture.pdf', bbox_inches='tight')
     plt.savefig(out_folder + 'building_architecture.png', bbox_inches='tight')
 plt.show()
+# %%
+
+# Building demand evolution
+fig, axs = plt.subplots(1, 2, figsize=(40, 20))
+plt.subplots_adjust(wspace=-0.3)
+
+lw = 0.5
+lw_listed = 3.5*lw
+
+vmin = min(gdf_buildings_demand['HEAT_VOLUME_2020'].min(), gdf_buildings_demand['HEAT_VOLUME_2050'].min())
+vmax = max(gdf_buildings_demand['HEAT_VOLUME_2020'].max(), gdf_buildings_demand['HEAT_VOLUME_2050'].max())
+
+cmap = plt.cm.Reds
+norm = colors.Normalize(vmin=vmin, vmax=vmax)
+
+gdf_buildings_demand.plot(ax=axs[0], column='HEAT_VOLUME_2020', cmap=cmap, norm=norm, edgecolor='black', linewidth=lw)
+gdf_buildings_demand.query("LISTED == 1").plot(ax=axs[0], facecolor='none', edgecolor='k', linewidth=lw_listed)
+axs[0].set_title('Heating Demand 2020')
+
+gdf_buildings_demand.plot(ax=axs[1], column='HEAT_VOLUME_2050', cmap=cmap, norm=norm, edgecolor='black', linewidth=lw)
+gdf_buildings_demand.query("LISTED == 1").plot(ax=axs[1], facecolor='none', edgecolor='k', linewidth=lw_listed)
+axs[1].set_title('Heating Demand 2050')
+
+cbar = fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ax=axs, orientation='horizontal', fraction=0.03, pad=0.0)
+cbar.set_label(r'Heating Demand $\left[\frac{MWh}{year}\right]$', fontsize=30)
+cbar.ax.tick_params(labelsize=25)
+cbar.outline.set_edgecolor('black')
+cbar.outline.set_linewidth(1)
+
+listed_patch = plt.Line2D([0], [0], color='k', lw=lw_listed, label='Listed Buildings')
+plt.legend(handles=[listed_patch], loc='upper right', fontsize=25)
+
+if save:
+    plt.savefig(out_folder + 'building_demand_evolution.pdf', bbox_inches='tight')
+    plt.savefig(out_folder + 'building_demand_evolution.png', bbox_inches='tight')
+plt.show()
+
 # %%

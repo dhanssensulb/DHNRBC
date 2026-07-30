@@ -33,6 +33,6 @@ file_peb_public = folder_peb + '/public.gpkg'
 
 gdf_peb = process.load_peb_public(file_peb_public, mask=mask_pentagone)
 
-
-# Save dataframe in folder_peb
+# Save dataframe in PEB folder
 gdf_peb.to_feather(folder_peb + '/peb_public.feather')
+# %%

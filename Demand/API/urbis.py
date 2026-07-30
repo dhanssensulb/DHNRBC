@@ -13,13 +13,16 @@ import load
 import importlib
 importlib.reload(load)
 
+# Import UrbIS data from WFS service
+# https://datastore.brussels/web/data/dataset/f3ad5174-4a86-11ef-b009-010101010000#access
+
 WFS_UrbIS_vec = 'https://geoservices-vector.irisnet.be/geoserver/urbisvector/wfs'
 
 wfs, layers = load.connect_to_wfs(WFS_UrbIS_vec)
 
 crs_lambert = 'EPSG:31370'
 
-properties = {
+properties = { # Properties to fetch for each layer
     'urbisvector:Addresses': [
         'STRNAMEFRE', 'POLICENUM', 'BOXNUMBER', 'ZIPCODE',
         'STATNISCODE', 'CAPAKEY', 'XL72', 'YL72',

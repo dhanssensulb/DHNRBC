@@ -1,1 +1,0 @@
-- Clean listed buildings

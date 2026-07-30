@@ -13,6 +13,9 @@ import load
 import importlib
 importlib.reload(load)
 
+# Import BISA data from WFS service
+# https://datastore.brussels/web/data/dataset/8591584f-97f9-11ee-a746-010101010000#details
+
 WFS_BISA = 'https://geoservices-vector.irisnet.be/geoserver/BISA/wfs'
 
 wfs, layers = load.connect_to_wfs(WFS_BISA)

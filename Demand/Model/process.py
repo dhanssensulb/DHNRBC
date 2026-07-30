@@ -81,25 +81,12 @@ def load_dd(file_dd='hdd_cdd.csv'):
         index=decades
     )
 
-    return df_dd
+    return df_dd, dd_group, hdd_cdd
 
-def compute_building_demand(gdf_b, df_dd):
+def compute_building_demand(gdf_b, df_dd, eta_sh, eta_dhw):
     """
     Compute the building demand for space heating and domestic hot water based on degree days.
     """
-    eta_sh = {
-        '2020': 1.0,
-        '2030': 0.9,
-        '2040': 0.8,
-        '2050': 0.7
-    }
-
-    eta_dhw = {
-        '2020': 1.0,
-        '2030': 0.95,
-        '2040': 0.9,
-        '2050': 0.85
-    }
 
     gdf_b_demand = gdf_b.copy()
 

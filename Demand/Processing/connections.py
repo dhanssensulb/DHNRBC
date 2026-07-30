@@ -26,7 +26,6 @@ gdf_nodes = process.load_gdf(file_nodes)
 # Create connections
 gdf_connections = process.connect_buildings_to_streets(gdf_buildings, gdf_edges, gdf_nodes, n_length_threshold=5)
 
-# Save dataframes in res
-
+# Save dataframes in RES
 gdf_connections.to_feather('../Res/Connections.feather')
 # %%

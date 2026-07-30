@@ -8,23 +8,30 @@
   - Load Administrative units
   - Load Transport networks
 
-- BruGIS - urban.brussels
+- BruGIS - Urban.brussels
   - Load Heritage
   - Load Legal inventory
   - Load segments and nodes
 
-- OSM
+- OSM - OpenStreetMap
+  - Load building footprints
+  - Load street network
 
-- SitEx
+- SitEx - Perspective.brussels
+  - Load building types
+  - Load floor areas
+
+- Zonal Vision - Brussels Environment
+  - Load access to resources
   
 # Heritage and Legal inventory (CoBAT)
 
 The Brussels Town Planning Code (CoBAT - Code Bruxellois de l'Aménagement du Territoire) establishes rules to protect buildings listed in the legal inventory.
 
 - Art. 206 - Immovable heritage
-  - Monument = Any particularly remarkable structure, including installations or decorative features forming an integral part of that structure
-  - Complex = Any group of immovable properties forming an urban or rural complex that is sufficiently coherent to be defined topographically and is notable for its homogeneity or its integration into the landscape
-  - Site = Any work of nature or of man, or any combined work of man and nature, constituting a space that is unbuilt or partially built and which exhibits spatial coherence
+  - Monument = Any particularly remarkable structure, including installations or decorative features forming an integral part of that structure.
+  - Complex = Any group of immovable properties forming an urban or rural complex that is sufficiently coherent to be defined topographically and is notable for its homogeneity or its integration into the landscape.
+  - Site = Any work of nature or of man, or any combined work of man and nature, constituting a space that is unbuilt or partially built and which exhibits spatial coherence.
 
 - Art. 207
   - Any application for a permit relating to a property listed in the legal inventory is subject to the opinion of the consultation committee. The Royal Commision for Monuments and Sites (CRMS) is consulted only at the request of the consulation committe.
@@ -46,9 +53,9 @@ Some properties in the legal inventory are subjected to stricter protection meas
 - Art. 216
   - A property listed on the preservation list is automatically included in the inventory of built heritage.
 
-In BruGIS:
-  - AG1: Decree in progress
-  - AG2: Final decree
+> In BruGIS:
+> - AG1: Decree in progress
+> - AG2: Final decree
 
 ### Classificiation ('registered')
 
@@ -65,17 +72,7 @@ In BruGIS:
 - Art. 235
   - A classified property is automatically included in the inventory of listed heritage.
 
-In BruGIS:
-  - AG1: Decree in progress
-  - AG2: Final decree
-  - One shot: Automatic final decree
-
-# Observations
-
-Some types of parcels are registered in the heritage as another type of parcel.
-
-A parcel can contain several buildings. A building can be included in several parcels.
-
-An address can be located outside the geometry of the building. A building can have several addresses. An address can have several boxnumbers.
-
-A UrbIS building does not necessarily correspond to a real building. And some buildings are not residential properties, shops or offices &rarr; All buildings are not heated or cooled.
+> In BruGIS:
+> - AG1: Decree in progress
+> - AG2: Final decree
+> - One shot: Automatic final decree

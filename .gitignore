@@ -3,3 +3,6 @@ Data/*
 
 # Keep the folder itself
 !Data/.gitkeep
+
+# Ignore PEB folder
+PEB/*
