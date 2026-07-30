@@ -5,4 +5,4 @@ Data/*
 !Data/.gitkeep
 
 # Ignore PEB folder
-PEB/*
+Demand/PEB/*
