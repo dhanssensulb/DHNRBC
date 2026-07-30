@@ -4,8 +4,20 @@ Data/*
 # Keep the folder itself
 !Data/.gitkeep
 
+<<<<<<< HEAD
+# Ignore output
+*.pdf
+*.html
+*.svg
+*.gif
+*.feather
+dhnrbc/
+*.feather
+=======
 # Ignore PEB folder
 Demand/PEB/*
 
 # Keep the folder itself
 !Demand/PEB/.gitkeep
+>>>>>>> origin/main
+__pycache__/
