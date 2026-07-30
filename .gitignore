@@ -6,3 +6,6 @@ Data/*
 
 # Ignore PEB folder
 Demand/PEB/*
+
+# Keep the folder itself
+!Demand/PEB/.gitkeep
