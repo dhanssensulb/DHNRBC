@@ -1,0 +1,2 @@
+[console_scripts]
+geoviews = geoviews.command:main

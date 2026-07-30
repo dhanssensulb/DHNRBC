@@ -3,3 +3,9 @@ Data/*
 
 # Keep the folder itself
 !Data/.gitkeep
+
+# Ignore output
+*.pdf
+*.html
+*.svg
+*.gif
