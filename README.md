@@ -5,7 +5,9 @@ Study of the optimal design of a district heating network for the centre of Brus
 
 To collect and store WFS data locally in the [Data](Data/) folder, run the appropriate scripts located in the [API](Demand/API/) subdirectory. Note that no data is tracked by Git.
 
-## Stochastic Optimisation
+## PCST
+
+Run the appropriate scripts in the [Optim](Optim/) folder to solve the Prize-Collecting Steiner Tree Problem.
 
 ## Requirements
 
