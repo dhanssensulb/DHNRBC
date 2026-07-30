@@ -19,21 +19,21 @@ file_macro = folder_bisa + '/StatisticalMacrozones.feather'
 
 gdf_macro = process.load_gdf(file_macro)
 
-# Mask Pentagone
-gdf_pentagone = gdf_macro[gdf_macro.ma_code == 1]
-mask_pentagone = gdf_pentagone.union_all()
+# Mask Pentagon
+gdf_pentagon = gdf_macro[gdf_macro.ma_code == 1]
+mask_pentagon = gdf_pentagon.union_all()
 
-mask_pentagone_extended = mask_pentagone.buffer(100) # Extend by 100m
+mask_pentagon_extended = mask_pentagon.buffer(100) # Extend by 100m
 
 # Urbis
 urbis_folder = '../../Data/UrbIS'
 
-gdf_nodes_urbis, gdf_edges_urbis = process.load_urbis_network(urbis_folder, mask=mask_pentagone)
+gdf_nodes_urbis, gdf_edges_urbis = process.load_urbis_network(urbis_folder, mask=mask_pentagon)
 
 # OSM
 osm_folder = '../../Data/OSM'
 
-gdf_nodes_osm, gdf_edges_osm = process.load_osm_network(osm_folder, mask=mask_pentagone)
+gdf_nodes_osm, gdf_edges_osm = process.load_osm_network(osm_folder, mask=mask_pentagon)
 
 # Load RES buildings
 res_folder = '../Res'

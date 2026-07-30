@@ -162,5 +162,5 @@ if __name__ == "__main__":
     import bisa
     import urbis
     import brugis
-    import osm # OSM must be run after BISA as it requires the Pentagone mask
+    import osm # OSM must be run after BISA as it requires the Pentagon mask
 # %%

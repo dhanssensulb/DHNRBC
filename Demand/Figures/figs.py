@@ -27,11 +27,11 @@ file_macro = folder_bisa + '/StatisticalMacrozones.feather'
 
 gdf_macro = settings.load_gdf(file_macro)
 
-# Mask Pentagone
-gdf_pentagone = gdf_macro[gdf_macro.ma_code == 1]
-mask_pentagone = gdf_pentagone.union_all()
+# Mask Pentagon
+gdf_pentagon = gdf_macro[gdf_macro.ma_code == 1]
+mask_pentagon = gdf_pentagon.union_all()
 
-mask_pentagone_extended = mask_pentagone.buffer(100) # Extend by 100m
+mask_pentagon_extended = mask_pentagon.buffer(100) # Extend by 100m
 
 # Load Data
 data_folder = '../../Data'
@@ -39,9 +39,9 @@ file_canal = data_folder + '/Vision_Zonee/01.CriteresAccessibilite/Canal_200m_sp
 file_senne = data_folder + '/Vision_Zonee/01.CriteresAccessibilite/Zenne_open_and_covered.shp'
 file_sewers = data_folder + '/Vision_Zonee/01.CriteresAccessibilite/riothermie.shp'
 
-gdf_canal = settings.load_gdf(file_canal, mask=mask_pentagone_extended)
-gdf_senne = settings.load_gdf(file_senne, mask=mask_pentagone_extended)
-gdf_sewers = settings.load_gdf(file_sewers, mask=mask_pentagone_extended)
+gdf_canal = settings.load_gdf(file_canal, mask=mask_pentagon_extended)
+gdf_senne = settings.load_gdf(file_senne, mask=mask_pentagon_extended)
+gdf_sewers = settings.load_gdf(file_sewers, mask=mask_pentagon_extended)
 
 # Load RES 
 res_folder = '../Res'
@@ -106,12 +106,12 @@ for spine in bg_ax.spines.values():
     spine.set_edgecolor('black')
     spine.set_linewidth(1.5)
 
-pentagone = gdf_macro.query("ma_id == 1")
+pentagon = gdf_macro.query("ma_id == 1")
 macro = gdf_macro.copy()
 bcr = gdf_macro.dissolve()
 
 macro.plot(ax=bg_ax, facecolor='chocolate', edgecolor='black', linewidth=0.5, alpha=0.5)
-pentagone.plot(ax=bg_ax, facecolor='chocolate', edgecolor='black', linewidth=1, alpha=1)
+pentagon.plot(ax=bg_ax, facecolor='chocolate', edgecolor='black', linewidth=1, alpha=1)
 bcr.plot(ax=bg_ax, facecolor='none', edgecolor='black', linewidth=1.5)
 
 if save:
