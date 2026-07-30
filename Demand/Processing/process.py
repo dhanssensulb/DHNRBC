@@ -10,12 +10,12 @@ Created on May 26
 import pandas as pd
 import geopandas as gpd
 from shapely.validation import make_valid
-from shapely.ops import snap, unary_union, polygonize, nearest_points
+from shapely.ops import polygonize, nearest_points
 from shapely.geometry import LineString
 from tqdm import tqdm
 import momepy
 import neatnet
-import networkx as nx
+import os
 
 def load_gdf(file, layer=None, mask=None, min_overlap_ratio=0.5):
     """
@@ -24,9 +24,9 @@ def load_gdf(file, layer=None, mask=None, min_overlap_ratio=0.5):
     For non-polygon geometries, they are included if they are within the mask.
     """
     if file.endswith('.feather'):
-        gdf = gpd.read_feather(file)
+        gdf = gpd.read_feather(os.path.abspath(file))
     else:
-        gdf = gpd.read_file(file, layer=layer) if layer else gpd.read_file(file)
+        gdf = gpd.read_file(os.path.abspath(file), layer=layer) if layer else gpd.read_file(os.path.abspath(file))
     
     # Removes null geometries and repairs invalid geometries
     gdf = gdf.dropna(subset=['geometry']).reset_index(drop=True)
@@ -102,6 +102,20 @@ def load_urbis_footprint(urbis_folder, mask=None):
 
     return gdf_c, gdf_B, gdf_b, gdf_a
 
+def load_sitex_data(file_sitex, mask=None):
+    """
+    Load and clean SitEx data, optionally applying a spatial mask.
+    """
+    gdf_s1 = load_gdf(file_sitex, layer='density_building', mask=mask)
+    gdf_s2 = load_gdf(file_sitex, layer='bureau', mask=mask)
+    gdf_s3 = load_gdf(file_sitex, layer='oap', mask=mask) # Public services
+
+    gdf_s1['type'] = 'building'
+    gdf_s1.loc[gdf_s1['id'].isin(gdf_s2['id']), 'type'] = 'office'
+    gdf_s1.loc[gdf_s1['id'].isin(gdf_s3['id']), 'type'] = 'public'
+
+    return gdf_s1
+
 def load_brugis_heritage(brugis_folder, mask=None):
     """
     Clean and harmonise the BruGIS heritage GeoDataFrames.
@@ -132,11 +146,18 @@ def load_zonal_data(vision_folder, mask=None):
     file_common_background = vision_folder + '/00.CouchesCommunes/Parcelles_Bxl_Mu.shp'
     cols_to_keep = ['ID_Int', 'PotGeoKWh', 'BatClasses']
     gdf_common_background = load_gdf(file_common_background, mask=mask)[cols_to_keep + ['geometry']]
+
     # Set Lambert 72 CRS
     gdf_common_background = gdf_common_background.set_crs("EPSG:31370")
+    # Fill NaN values in BatClasses
+    gdf_common_background['BatClasses'] = gdf_common_background['BatClasses'].fillna(0)
 
     file_geothermal = vision_folder + '/01.CriteresAccessibilite/AccesGeothermie_Mu.shp'
     gdf_geothermal = load_gdf(file_geothermal, mask=mask)
+
+    mask_geo_sup = gdf_geothermal['AccGeoSup'] == 1 # Heated Surface < 2x Unbuilt Surface
+    gdf_geothermal = gdf_geothermal[mask_geo_sup]
+
     gdf_common_background['GEOTHERMAL_ACCESS'] = gdf_common_background['ID_Int'].isin(gdf_geothermal['ID_Int']).astype(int)
 
     file_aquathermal = vision_folder + '/01.CriteresAccessibilite/AccesAquathermie_Mu.shp'
@@ -149,75 +170,31 @@ def load_zonal_data(vision_folder, mask=None):
 
     file_fatal_heat = vision_folder + '/01.CriteresAccessibilite/AccesChaleurFatalePtesSources_PasdAcces_Mu.shp'
     gdf_fatal_heat = load_gdf(file_fatal_heat, mask=mask)
+
+    mask_fatal_heat = gdf_fatal_heat['AccChFat50'] == 1 # < 50m from the fatal heat source
+    gdf_fatal_heat = gdf_fatal_heat[mask_fatal_heat]
+
     gdf_common_background['FATAL_HEAT_ACCESS'] = gdf_common_background['ID_Int'].isin(gdf_fatal_heat['ID_Int']).astype(int)
 
     # Clean Up
-    gdf_common_background = gdf_common_background.rename(columns={'BatClasses': 'LISTED', 'PotGeoKWh': 'POTENTIAL_KWH'})
+    gdf_common_background = gdf_common_background.rename(columns={'BatClasses': 'LISTED_CAD', 'PotGeoKWh': 'POTENTIAL_KWH'})
 
     return gdf_common_background
-
-def load_urbis_network(urbis_folder, mask=None):
-    """
-    Clean and harmonise the UrbIS GeoDataFrames.
-    """
-    # Street nodes
-    file_nodes = urbis_folder + '/StreetNodes.feather'
-    gdf_nodes = load_gdf(file_nodes, mask=mask)
-    # Street edges
-    file_edges = urbis_folder + '/StreetAxes.feather'
-    gdf_edges = load_gdf(file_edges, mask=mask)
-
-    return gdf_nodes, gdf_edges
-
-def load_osm_network(osm_folder, mask=None):
-    """
-    Load and clean the OSM network data.
-    """
-    file_nodes = osm_folder + '/Nodes.feather'
-    gdf_nodes = load_gdf(file_nodes, mask=mask)
-    file_edges = osm_folder + '/Edges.feather'
-    gdf_edges = load_gdf(file_edges, mask=mask)
-
-    return gdf_nodes, gdf_edges
-
-def group_urbis_footprint(gdf_c, gdf_B, gdf_b, gdf_a):
-    """
-    Group the UrbIS footprint GeoDataFrames and compute building statistics.
-    """
-    # Group addresses and parcels geometries
-    gdf_ac = gdf_a.merge(gdf_c, on='PARCEL_ID', how='left', suffixes=('_address', '_parcel'))
-    # Group buildings and blocks geometries
-    gdf_bb = gdf_b.merge(gdf_B, on='BLOCK_ID', how='left', suffixes=('_building', '_block'))
-
-    # Group buildings, blocks, addresses and parcels geometries
-    gdf_abc = gdf_bb.merge(gdf_ac, on='BUILDING_ID', how='left')
-
-    # Compute buildings statistics
-    gdf_buildings_stats = gdf_abc.groupby('BUILDING_ID').agg(
-        PARCEL_UNIQUE_COUNT=('PARCEL_ID', 'nunique'), # Number of unique parcels associated with the building
-        ADDRESS_FIRST=('ADDRESS', 'first'), # First address associated with the building
-        ADDRESS_UNIQUE_COUNT=('ADDRESS', 'nunique'), # Number of unique addresses associated with the building
-        MAX_BOXNUMBER_COUNT=('BOXNUMBER_COUNT', 'max'), # Maximum number of box numbers among the addresses associated with the building
-    )
-    
-    # Merge the building statistics back to the building GeoDataFrame
-    gdf = gdf_abc.merge(gdf_buildings_stats, on='BUILDING_ID', how='left')
-
-    return gdf
 
 def best_overlap_match(gdf, gdf_target, id_col, target_cols, threshold):
     """
     Returns the best overlapping target attributes for each geometry in gdf based on the specified threshold.
     """
     # Compute the area of each geometry in gdf
-    gdf['AREA'] = gdf.geometry.area
+    gdf_source = gdf.copy()
+    gdf_source['area'] = gdf_source.geometry.area
 
-    # Compute the intersection between gdf and gdf_target
-    inter = gpd.overlay(gdf, gdf_target[target_cols + ['geometry']], how='intersection', keep_geom_type=True)
+    # Compute the intersection between gdf_source and gdf_target
+    inter = gpd.overlay(gdf_source, gdf_target[target_cols + ['geometry']], how='intersection', keep_geom_type=True)
 
     # Compute the area of the intersection and the area of the original geometries
     inter['overlap_area'] = inter.geometry.area
-    inter['overlap_ratio'] = inter['overlap_area'] / inter['AREA']
+    inter['overlap_ratio'] = inter['overlap_area'] / inter['area']
 
     # Keep only significant overlaps
     inter = inter[inter["overlap_ratio"] >= threshold]
@@ -227,39 +204,10 @@ def best_overlap_match(gdf, gdf_target, id_col, target_cols, threshold):
 
     return best_match
 
-def infer_cadastral_data(gdf_b, gdf_c, binary_cols):
-    """
-    Infer cadastral data for buildings based on the cadastral parcels they intersect with.
-    """
-    # Compute the area of each building geometry
-    gdf_b['AREA'] = gdf_b.geometry.area
-
-    # Compute the intersection between buildings and cadastral parcels
-    inter = gpd.overlay(gdf_b, gdf_c, how='intersection')
-
-    inter['overlap_area'] = inter.geometry.area
-    inter['overlap_ratio'] = inter['overlap_area'] / inter['AREA']
-
-    # Compute the weighted average of the cadastral attributes for each building
-    weighted = inter[binary_cols].multiply(inter['overlap_ratio'], axis=0)
-    # Group by building and sum the weighted attributes
-    inter_builds = weighted.groupby(inter['BUILDING_ID']).sum()
-    # Threshold the binary attributes
-    inter_builds[binary_cols] = (inter_builds[binary_cols] > 0.5).astype(int)
-
-    gdf_b = gdf_b.merge(inter_builds[binary_cols], on='BUILDING_ID', how='left')
-
-    # Clean up
-    gdf_b = gdf_b.drop(columns=['AREA'])
-
-    return gdf_b
-
-
 def aggregate_cadastral_data(gdf_c, gdf_v, association_threshold=0.5):
     """
     Aggregate cadastral data from UrbIS and Zonal vision based on spatial overlap.
     """
-
     # Find the best overlapping vision data for each cadastral parcel
     best_vision = best_overlap_match(gdf_c, gdf_v, id_col='PARCEL_ID', target_cols=list(gdf_v.columns.drop(['ID_Int', 'geometry'])), threshold=association_threshold)
 
@@ -267,25 +215,27 @@ def aggregate_cadastral_data(gdf_c, gdf_v, association_threshold=0.5):
     result = gdf_c.merge(best_vision, on='PARCEL_ID', how='left')
 
     # Clean up
-    result = result.drop(columns=['AREA'])
+    result = result.fillna(0)
 
     return result
 
-
-def aggregate_building_data(gdf_b, gdf_osm, gdf_sitex, gdf_h, gdf_i, association_threshold=0.5):
+def aggregate_building_data(gdf_b, gdf_osm, gdf_sitex, gdf_h, gdf_i, gdf_peb=None, association_threshold=0.5):
     """
     Aggregate building data from UrbIS and OSM based on spatial overlap.
     A building from UrbIS is associated with a building from OSM if the overlap area is at least `association_threshold` of the UrbIS building area.
     """
-
     # Find the best overlapping OSM building and SitEx type for each UrbIS building
     best_osm = best_overlap_match(gdf_b, gdf_osm, id_col='BUILDING_ID', target_cols=['building'], threshold=association_threshold)
     best_sitex = best_overlap_match(gdf_b, gdf_sitex, id_col='BUILDING_ID', target_cols=['level_all', 'sp', 'type'], threshold=association_threshold)
     best_heritage = best_overlap_match(gdf_b, gdf_h, id_col='BUILDING_ID', target_cols=['MS'], threshold=association_threshold)
+    if gdf_peb is not None:
+        best_peb = gdf_peb.sjoin_nearest(gdf_b[['BUILDING_ID', 'geometry']], how='left', max_distance=10)
 
     # Merge the best associations back to the original UrbIS building GeoDataFrame
     result = gdf_b.merge(best_osm, on='BUILDING_ID', how='left')
     result = result.merge(best_sitex, on='BUILDING_ID', how='left')
+    if gdf_peb is not None:
+        result = result.merge(best_peb[['NRJ_IDX', 'BUILDING_ID']], on='BUILDING_ID', how='left')
 
     result = result.merge(best_heritage, on='BUILDING_ID', how='left')
 
@@ -297,24 +247,17 @@ def aggregate_building_data(gdf_b, gdf_osm, gdf_sitex, gdf_h, gdf_i, association
     result = result.drop(columns=['MS'])
 
     # Clean up
-    result = result.drop(columns=['AREA'])
-    result = result.rename(columns={'building': 'osm_type', 'type': 'sitex_type', 'level_all': 'MAX_LEVEL', 'sp': 'FLOOR_AREA'})
+    result = result.rename(
+        columns={
+            'building': 'osm_type', 'type': 'sitex_type',
+            'level_all': 'MAX_LEVEL', 'sp': 'FLOOR_AREA',
+            'NRJ_IDX': 'PEB_NRJ'
+        }
+    )
+    result['FLOOR_AREA'] = result['FLOOR_AREA'].fillna(result.geometry.area)
+    result = result.fillna({'osm_type': 'yes', 'sitex_type' : 'building', 'INVENTORY': 0, 'HERITAGE': 0, 'LISTED': 0})
 
     return result
-
-def load_sitex_data(file_sitex, mask=None):
-    """
-    Load and clean SitEx data, optionally applying a spatial mask.
-    """
-    gdf_s1 = load_gdf(file_sitex, layer='density_building', mask=mask)
-    gdf_s2 = load_gdf(file_sitex, layer='bureau', mask=mask)
-    gdf_s3 = load_gdf(file_sitex, layer='oap', mask=mask)
-
-    gdf_s1['type'] = 'building'
-    gdf_s1.loc[gdf_s1['id'].isin(gdf_s2['id']), 'type'] = 'office'
-    gdf_s1.loc[gdf_s1['id'].isin(gdf_s3['id']), 'type'] = 'public'
-
-    return gdf_s1
 
 def determine_building_type(gdf_build):
     """
@@ -346,12 +289,89 @@ def estimate_thermal_characteristics(gdf_build):
 
     return gdf_build
 
-def clean_segments(gdf_edges, mask=None):
+def infer_cadastral_data(gdf_b, gdf_c, binary_cols):
+    """
+    Infer cadastral data for buildings based on the cadastral parcels they intersect with.
+    """
+    # Compute the area of each building geometry
+    gdf_b['AREA'] = gdf_b.geometry.area
 
+    # Compute the intersection between buildings and cadastral parcels
+    inter = gpd.overlay(gdf_b, gdf_c, how='intersection')
+
+    inter['overlap_area'] = inter.geometry.area
+    inter['overlap_ratio'] = inter['overlap_area'] / inter['AREA']
+
+    # Compute the weighted average of the cadastral attributes for each building
+    weighted = inter[binary_cols].multiply(inter['overlap_ratio'], axis=0)
+    # Group by building and sum the weighted attributes
+    inter_builds = weighted.groupby(inter['BUILDING_ID']).sum()
+    # Threshold the binary attributes
+    inter_builds[binary_cols] = (inter_builds[binary_cols] > 0.5).astype(int)
+
+    gdf_b = gdf_b.merge(inter_builds[binary_cols], on='BUILDING_ID', how='left')
+
+    # Clean up
+    gdf_b[binary_cols] = gdf_b[binary_cols].fillna(0).astype(int)
+    gdf_b = gdf_b.drop(columns=['AREA'])
+
+    return gdf_b
+
+def group_urbis_footprint(gdf_c, gdf_B, gdf_b, gdf_a):
+    """
+    Group the UrbIS footprint GeoDataFrames and compute building statistics.
+    """
+    # Group addresses and parcels geometries
+    gdf_ac = gdf_a.merge(gdf_c, on='PARCEL_ID', how='left', suffixes=('_address', '_parcel'))
+    # Group buildings and blocks geometries
+    gdf_bb = gdf_b.merge(gdf_B, on='BLOCK_ID', how='left', suffixes=('_building', '_block'))
+
+    # Group buildings, blocks, addresses and parcels geometries
+    gdf_abc = gdf_bb.merge(gdf_ac, on='BUILDING_ID', how='left')
+
+    # Compute buildings statistics
+    gdf_buildings_stats = gdf_abc.groupby('BUILDING_ID').agg(
+        PARCEL_UNIQUE_COUNT=('PARCEL_ID', 'nunique'), # Number of unique parcels associated with the building
+        ADDRESS_FIRST=('ADDRESS', 'first'), # First address associated with the building
+        ADDRESS_UNIQUE_COUNT=('ADDRESS', 'nunique'), # Number of unique addresses associated with the building
+        MAX_BOXNUMBER_COUNT=('BOXNUMBER_COUNT', 'max'), # Maximum number of box numbers among the addresses associated with the building
+    )
+    
+    # Merge the building statistics back to the building GeoDataFrame
+    gdf = gdf_abc.merge(gdf_buildings_stats, on='BUILDING_ID', how='left')
+
+    return gdf
+
+def load_urbis_network(urbis_folder, mask=None):
+    """
+    Clean and harmonise the UrbIS GeoDataFrames.
+    """
+    # Street nodes
+    file_nodes = urbis_folder + '/StreetNodes.feather'
+    gdf_nodes = load_gdf(file_nodes, mask=mask)
+    # Street edges
+    file_edges = urbis_folder + '/StreetAxes.feather'
+    gdf_edges = load_gdf(file_edges, mask=mask)
+
+    return gdf_nodes, gdf_edges
+
+def load_osm_network(osm_folder, mask=None):
+    """
+    Load and clean the OSM network data.
+    """
+    # Street nodes
+    file_nodes = osm_folder + '/Nodes.feather'
+    gdf_nodes = load_gdf(file_nodes, mask=mask)
+    # Street edges
+    file_edges = osm_folder + '/Edges.feather'
+    gdf_edges = load_gdf(file_edges, mask=mask)
+
+    return gdf_nodes, gdf_edges
+
+def clean_segments(gdf_edges, mask=None):
     """
     Clean and simplify the street segments.
     """
-
     # Explode multipart lines
     gdf_edges = gdf_edges.explode().copy()
     # Close gaps
@@ -381,7 +401,6 @@ def connect_buildings_to_streets(gdf_buildings, gdf_edges, gdf_nodes, n_length_t
     """
     Connect buildings to the nearest street segments.
     """
-
     buildings = gdf_buildings.copy()
     edges = gdf_edges.copy()
     nodes = gdf_nodes.copy()
@@ -403,18 +422,24 @@ def connect_buildings_to_streets(gdf_buildings, gdf_edges, gdf_nodes, n_length_t
         - The line must not cross any other edge.
         - The line must not touch any node.
         """
-        # TODO: Check if the line is a line and not a point (in case the building is already touching the edge)
-        
+
+        # Check if the line is a line
+        if line.geom_type != 'LineString':
+            return False
+
+        # Check if the line crosses any other building
         touching_buildings = buildings[buildings.geometry.crosses(line)]
         touching_buildings = touching_buildings[touching_buildings.geometry != building] # Exclude the building itself
         if len(touching_buildings) > 0:
             return False
 
+        # Check if the line crosses any other edge
         touching_edges = edges[edges.geometry.crosses(line)]
         touching_edges = touching_edges[touching_edges.geometry != target_edge] # Exclude the target edge
         if len(touching_edges) > 0:
             return False
 
+        # Check if the line touches any node
         touching_nodes = nodes[nodes.geometry.touches(line)]
         if len(touching_nodes) > 0:
             return False
@@ -424,7 +449,7 @@ def connect_buildings_to_streets(gdf_buildings, gdf_edges, gdf_nodes, n_length_t
     blocks = build_blocks(edges)
     connections = []
 
-    # For each building, find the nearest edge and create a connection line
+    # For each building, find the nearest edges and create a connection line
     for b_idx, b in tqdm(buildings.iterrows(), total=len(buildings)):
         b_geom = b.geometry
         block = blocks[blocks.geometry.contains(b_geom)] # Should be only one block
@@ -434,10 +459,11 @@ def connect_buildings_to_streets(gdf_buildings, gdf_edges, gdf_nodes, n_length_t
             print(f"No block found for building {b_idx}, using nearest edge as fallback.")
             e_idx = edges.distance(b_geom).idxmin()
             e_geom = edges.loc[e_idx].geometry
+            e_id = edges.loc[e_idx].EDGE_ID
             p1, p2 = nearest_points(b_geom, e_geom)
             line = LineString([p1, p2])
             if valid_connection(line, b_geom, e_geom):
-                conn = {'B_IDX': b_idx, 'BUILDING_ID': b.BUILDING_ID, 'EDGE_ID': e.EDGE_ID, 'length': line.length, 'geometry': line}
+                conn = {'B_IDX': b_idx, 'BUILDING_ID': b.BUILDING_ID, 'EDGE_ID': e_id, 'length': line.length, 'geometry': line}
                 connections.append(conn)
             continue
 
@@ -450,6 +476,7 @@ def connect_buildings_to_streets(gdf_buildings, gdf_edges, gdf_nodes, n_length_t
         eps = 1e-6
         cand_edges = cand_edges[cand_edges.geometry.within(block_geom.buffer(eps))]
 
+        # For each candidate edge, find the nearest point on the edge to the building and create a connection line
         for e_idx, e in cand_edges.iterrows():
             e_geom = e.geometry
             p1, p2 = nearest_points(b_geom, e_geom)
@@ -474,18 +501,18 @@ def connect_buildings_to_streets(gdf_buildings, gdf_edges, gdf_nodes, n_length_t
 
     # For buildings with empty connections, copy the connections of the nearest connected building
     for b_idx, b in buildings.iterrows():
-        b_geom = b.geometry
         if b_idx in connected_buildings:
             continue
         print(f"Building {b_idx} has no valid connections, copying from nearest connected building.")
-        # Find the nearest connection
-        nearest_conn_idx = gdf_connections.distance(b_geom).idxmin()
-        nearest_conn = gdf_connections.loc[nearest_conn_idx]
+        b_geom = b.geometry
+        # Find the nearest connected building
+        nearest_building_idx = buildings.loc[list(connected_buildings)].distance(b_geom).idxmin()
+        nearest_conn = gdf_connections[gdf_connections['B_IDX'] == nearest_building_idx]
         # Copy the connection(s) and update the building index to the current building
         new_conns = nearest_conn.copy()
         new_conns['B_IDX'] = b_idx
         # Add each new connection to the connections list and GeoDataFrame
-        connections.append(new_conns.to_dict())
+        connections.extend(new_conns.to_dict('records'))
     
     # Update the connections GeoDataFrame with the new connections
     gdf_connections = gpd.GeoDataFrame(connections, geometry='geometry', crs=buildings.crs)
@@ -498,3 +525,4 @@ if __name__ == "__main__":
     import buildings
     import segments
     import connections
+# %%
