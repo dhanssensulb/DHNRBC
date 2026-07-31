@@ -179,7 +179,7 @@ gdf_nodes.plot(ax=ax, color='k', markersize=2, zorder=10)
 # Legend
 red_patch = plt.Line2D([0], [0], color='red', lw=2, label='Street Network')
 blue_patch = plt.Line2D([0], [0], color='blue', lw=2, label='Building-Street Connections')
-plt.legend(handles=[red_patch, blue_patch], loc='upper right', fontsize=24)
+plt.legend(handles=[red_patch, blue_patch], loc='upper right', fontsize=26)
 
 if save:
     plt.savefig(out_folder + 'building_network.pdf', bbox_inches='tight')
