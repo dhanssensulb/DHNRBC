@@ -20,6 +20,11 @@ plt.rc('axes', facecolor='white', edgecolor='none', titlesize=35)
 plt.rc('xtick', bottom=False, top=False, labelbottom=False)
 plt.rc('ytick', left=False, right=False, labelleft=False)
 
+plt.rcParams.update({
+    "axes.titleweight": "normal",   # <-- fixes the bold-fallback issue
+    "figure.titleweight": "normal", # <-- same fix for suptitle
+})
+
 def load_gdf(file, layer=None, mask=None, min_overlap_ratio=0.5):
     """
     Load a GeoDataFrame from a file, optionally applying a spatial mask.

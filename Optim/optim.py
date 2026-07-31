@@ -10,7 +10,7 @@ Pipeline:
   5. solve the rooted PCST with pcst_fast
   6. inspect / plot the resulting tree
 
-@author: hanssens
+@author: jhachez
 """
 
 # %% imports
@@ -45,626 +45,12 @@ plt.rcParams.update({
     "figure.titleweight": "normal", # <-- same fix for suptitle
 })
 #%%
-import os
-import shutil
-os.environ["PATH"] += os.pathsep + "/Library/TeX/texbin"
-print(shutil.which("latex"))
-
-
-# def compute_price(plot = False):
-#     elec_commodity = {}
-#     gas_commodity = {}
-#     CO2_intensity = {}
-#     elec_transport = {}
-#     gas_transport = {}
-#     elec_distribution = {}
-#     gas_distribution = {}
-#     SC_CO2 = {2030:150, 2040:175, 2050:200} # Estimated from Mimi.jl Chart (USD/tCO2)
-#     CCGT_emission_factor = 0.4 # taken from Gemini (tCO2/MWh)
-#     NG_emission_factor = 0.2 # taken from Gemini (tCO2/MWh)
-
-#     if plot:
-#         fig, ax = plt.subplots()
-#     df = pd.DataFrame()
-#     color_years = {2030:'darkblue',
-#                    2040:'steelblue',
-#                    2050:'lightblue'}
-#     years = [2030, 2040, 2050]
-
-#     for year in years:
-#         mp = pd.read_csv(f'../Data/marginal_price_results/marginal_price_t2m_co2_{year}.csv', parse_dates= True, index_col='time')
-#         marginal_gas = mp['AC (EUR/MWh)'] > 40
-#         mp.loc[marginal_gas, 'AC (EUR/MWh)'] *= 2 # gas price is closer to 80 EUR/MWh -->double the reported value
-#         if plot:
-#             print(f"Max price: {(mp.loc[marginal_gas, 'AC (EUR/MWh)'].max())}")
-#         mp.loc[marginal_gas, 'AC (EUR/MWh)'] += SC_CO2[year] * CCGT_emission_factor # adding CO2 cost
-
-#         df[year] = np.array(mp.loc[:,'AC (EUR/MWh)'].sort_values(ascending = False))[0:8760]
-#         mp['date'] = mp.index.date
-#         mp = mp.groupby('date').mean().reset_index()
-
-#         # mp['AC (EUR/MWh)'].plot()
-#         mp['HDD'] = 15 - mp['T2m (C)']
-#         mp.loc[mp['HDD'] < 0, 'HDD'] = 0   # rows where HDD<0, column 'HDD'
-
-#         elec_commodity[year] = (mp['HDD'] @ mp['AC (EUR/MWh)']) / mp['HDD'].sum()
-        
-#         CO2_intensity[year] = (mp['HDD'] @ mp['grid CO2 intensity (tCO2/MWh)']) / mp['HDD'].sum()
-#         gas_commodity[year] = 40 + SC_CO2[year] * NG_emission_factor
-
-#         elec_transport[year]        = 21.4 * 1.03 ** (year-2025)
-#         gas_transport[year]         =  1.6 * 1.03 ** (year-2025)
-#         elec_distribution[year]     = 93.9 * 1.03 ** (year-2025)
-#         gas_distribution[year]      = 18.8 * 1.03 ** (year-2025)
-#         if plot:
-#             ax.hlines(y = elec_commodity[year], xmin = 0, xmax = 8760, color = color_years[year], ls = 'dashed')
-
-#     if plot:
-#         df.plot(color = [color_years[year] for year in years], ax=ax)
-#         ax.set_title('Evolution of the duration curve of electricity prices \nbased on EC-Earth-Veg, SSP2-4.5')
-#         ax.set_ylabel('Energy prices €/MWh')
-#         ax.set_xlabel('Hours')
-#         ax.set_xlim(0,8760)
-#         ax.set_ylim(0,200)
-
-#         plt.tight_layout()
-#         fig.savefig('Output/Electricity_prices.pdf')
-#     # return mp_2030
-#     return elec_commodity, gas_commodity, elec_transport, gas_transport, elec_distribution, gas_distribution, CO2_intensity
-
-# elec_commodity, gas_commodity, elec_transport, gas_transport, elec_distribution, gas_distribution, CO2_intensity = compute_price()
-
-
-
-# def include_source(new_buildings):
-#     buildings_inclusive = new_buildings.copy()
-#     buildings_inclusive.drop(columns = ['GEOTHERMAL_ACCESS'], inplace = True)
-#     buildings_inclusive['FATAL_HEAT_ACCESS'] *= 0
-#     buildings_inclusive.rename(columns = {'AQUATHERMAL_ACCESS':'WSHP_ACCESS'}, inplace = True)
-#     df = pd.read_excel('../Data/tech_locations.xlsx', sheet_name='building_access')
-    
-#     # buildings_inclusive[f"ASH"]  *= 5
-#     buildings_inclusive[f"WSHP_ACCESS"]         *= 5.00 # MW
-#     buildings_inclusive[f"RIOTHERMAL_ACCESS"]   *= 0.05 # MW
-#     buildings_inclusive[f"FATAL_HEAT_ACCESS"]   *= 0.10 # MW
-#     for source in df['source_type'].unique():
-#         sub_df = df[df['source_type'] == source].copy().rename(columns={'power (MW_prim)':f"{source}_ACCESS", 'building_id':'BUILDING_ID'})
-#         buildings_inclusive = pd.merge(right = sub_df[['BUILDING_ID', f"{source}_ACCESS"]], left = buildings_inclusive, how = 'left')
-#         buildings_inclusive[f"{source}_ACCESS"] = buildings_inclusive[f"{source}_ACCESS"].fillna(0)
-    
-#     print('Standard power assumed - thermal power')
-#     print('ASHP          - 10 MW')
-#     print('WSHP          -  5 MW')
-#     print('GSHP          - 23 MW')
-#     print('CHP pellet    - 17 MW')
-#     print('Rheothermia   - 0.05 MW')
-#     print('Fatal heat HP - 0.10 MW')
-#     return buildings_inclusive
-
-# def design_network(edges_df, building_df, nodes_df, root):
-#     """Map all node/building ids to contiguous ints and attach them to edges."""
-#     merged = pd.concat(
-#         [nodes_df[['NODE_ID']],
-#          building_df[['BUILDING_ID', 'VALUE']].rename(columns={'BUILDING_ID': 'NODE_ID'})],
-#         ignore_index=True,
-#     )
-#     merged['new_ID'] = merged.index
-#     merged['VALUE']  = merged['VALUE'].fillna(0.0)
-#     assert merged['NODE_ID'].is_unique, "duplicate node id in merged table"
-
-#     nmap = dict(zip(merged['NODE_ID'], merged['new_ID']))
-
-#     e = edges_df.copy()
-#     e['int_NODE_START'] = e['NODE_START'].map(nmap)
-#     e['int_NODE_END']   = e['NODE_END'].map(nmap)
-
-#     # no edge endpoint may be unmapped, or to_numpy(int64) yields garbage
-#     assert e[['int_NODE_START', 'int_NODE_END']].notna().all().all(), \
-#         "unmapped edge endpoint (NaN) — would corrupt the solver"
-
-#     return merged, e, nmap[root]
-
-
-# def check_node_degree(sel_edges, sol_buildings):
-#     used      = set(vertices)
-
-#     dangling = sel_edges[
-#         ~sel_edges['int_NODE_START'].isin(used) | ~sel_edges['int_NODE_END'].isin(used)
-#     ]
-#     print(f"Selected edges      : {len(sel_edges)}")
-#     print(f"Dangling edge ends  : {len(dangling)}")
-
-#     # connected components — use the INT columns so a stray NaN can't merge nodes
-#     G = nx.Graph()
-#     G.add_edges_from(sel_edges[['int_NODE_START', 'int_NODE_END']]
-#                     .itertuples(index=False, name=None))
-#     components = list(nx.connected_components(G))
-#     print(f"Connected components: {len(components)}")
-#     for i, comp in enumerate(components):
-#         print(f"  component {i:2d}: {len(comp):4d} nodes")
-
-#     nodes_idx = pcst_nodes[pcst_nodes.index.isin(vertices)]
-#     sol_buildings = pd.merge(
-#         price_building_df, nodes_idx, right_on='NODE_ID', left_on='BUILDING_ID'
-#     )
-#     pd.merge(sel_edges, sol_buildings, left_on ='NODE_END', right_on ='BUILDING_ID').groupby('BUILDING_ID').count()['EDGE_ID'].hist(bins=[0.25,0.75,1.25,1.75,2.25,2.75,3.25,3.75], width = 0.5)
-
-# class LogLinearColormap(cm.LinearColormap):
-#     """A continuous LinearColormap that interpolates on log10(value)
-#     instead of the raw value."""
-#     def __init__(self, colors, vmin, vmax, caption=""):
-#         # vmin must be > 0 for log scale
-#         self.vmin_raw = max(vmin, 1e-9)
-#         self.vmax_raw = vmax
-#         super().__init__(
-#             colors=colors,
-#             vmin=math.log10(self.vmin_raw),
-#             vmax=math.log10(self.vmax_raw),
-#             caption=caption,
-#         )
-
-#     def __call__(self, x):
-#         x = float(x)
-#         if np.isnan(x):
-#             x = self.vmin_raw
-#         x = min(max(x, self.vmin_raw), self.vmax_raw)  # clip to range
-#         return super().__call__(math.log10(x))
-
-# def make_log_colormap(series, colors, caption=""):
-#     vmin = 1  # fixed minimum as requested
-#     vmax = float(series.max())
-#     return LogLinearColormap(colors=colors, vmin=vmin, vmax=vmax, caption=caption)
-
-# def make_map(price_building_df,sel_edges, filename):
-#     m = price_building_df[~price_building_df['BUILDING_ID'].isin(sol_buildings['BUILDING_ID'])].explore(
-#         tooltip=["BUILDING_ID", "conso_2030", "conso_2040", "conso_2050"],
-#         tiles="CartoDB positron",
-#         style_kwds=dict(color="gray", weight=0, fillOpacity=0.6),
-#         name="buildings (unselected)",
-#     )
-
-#     colors = ["#008b3c", "#21a61c", "#b4fd61", "#f4b643", "#d76727", "#a50000", "#850000"]
-
-#     columns_to_show = ["conso_2030", "conso_2040", "conso_2050"]
-#     layers = []
-
-#     colormap = make_log_colormap(sol_buildings["SPEC_SPACE_HEAT"], colors, caption="conso_2030")
-#     colormap.add_to(m)  # shows the legend for this layer
-#     for col in columns_to_show:
-#         layer = sol_buildings.explore(
-#             m=m,
-#             column=col,
-#             cmap=colormap,
-#             tooltip=["BUILDING_ID", "FLOOR_AREA", "conso_2030", "conso_2040", "conso_2050"],
-#             popup=True,
-#             style_kwds=dict(color="black", weight=1, fillOpacity=0.6),
-#             name=f"buildings – {col}",
-#         )
-#         layers.append(layer)
-
-#     sel_edges.explore(m=m, color="red", style_kwds=dict(weight=1.5),
-#                     tooltip=["EDGE_ID", "COST"], name="network")
-
-#     # group the per-column layers so only one can be active at once (radio behavior)
-#     GroupedLayerControl(
-#         groups={"Color by": [l for l in m._children.values() if isinstance(l, folium.GeoJson) and l.layer_name.startswith("buildings –")]},
-#         collapsed=False,
-#     ).add_to(m)
-
-#     m.save(f"Output/html_maps/{filename}")
-
-# def reshape_prod_value(df):
-#     records = []
-#     for col in df.columns:
-#         m = re.match(r'^(prod|value)_(.+)_(\d{4})$', col)
-#         if not m:
-#             continue
-#         var_type, source, year = m.groups()
-#         records.append((col, var_type, source, int(year)))
-
-#     result = {}
-#     for col, var_type, source, year in records:
-#         key = (source, year)
-#         result.setdefault(key, {})[var_type] = df[col]
-
-#     rows = []
-#     for (source, year), vals in result.items():
-#         prod = vals.get('prod')
-#         value = vals.get('value')
-#         n = len(df)
-#         for i in range(n):
-#             rows.append({
-#                 'building_id': df['BUILDING_ID'].iloc[i],  # Added building_id
-#                 'type': source,
-#                 'year': year,
-#                 'prod': prod.iloc[i] if prod is not None else None,
-#                 'value': value.iloc[i] if value is not None else None
-#             })
-
-#     return pd.DataFrame(rows)
-
-# def reshape_cons_value(df):
-#     records = []
-#     for col in df.columns:
-#         m = re.match(r'^conso_(\d{4})$', col)
-#         if not m:
-#             continue
-#         year = int(m.group(1))
-#         records.append((col, year))
-
-#     rows = []
-#     n = len(df)
-#     has_building_id = 'BUILDING_ID' in df.columns
-#     for col, year in records:
-#         for i in range(n):
-#             row = {
-#                 'year': year,
-#                 'conso': df[col].iloc[i]
-#             }
-#             if has_building_id:
-#                 row['building_id'] = df['BUILDING_ID'].iloc[i]
-#             rows.append(row)
-
-#     return pd.DataFrame(rows)
-
-# #%%
-# BETA  = 0e8   # leaf-enforcing penalty (must exceed max true building VALUE)
-# GAMMA = 0e-6   # €/m per meter-of-distance-from-root, applied to trench cost (must be tuned/calibrated)
-# ROOT   = 'B1823663'   # single source of truth for the rooted PCST
-# DISCOUNT_RATE = 0.03
-# YEAR_TODAY    = 2026
-# #%%
-# TECH_COLORS = {
-#     'ASHP':        '#5DA9E9',  # air source heat pump -> sky blue (air)
-#     'GSHP':        '#8B5A2B',  # ground source heat pump -> earth brown (ground)
-#     'WSHP':        '#1B7A8C',  # water source heat pump -> deep teal (water)
-#     'RIOTHERMAL':  '#3AB0C3',  # river-thermal -> lighter cyan (surface water)
-#     'CHP pellet':  '#4C9A2A',  # biomass CHP -> green (renewable biomass)
-#     'FATAL_HEAT':  '#E67E22',  # recovered waste heat -> orange (industrial)
-# }
-
-# FALLBACK_CMAP = plt.get_cmap('tab20')  # used for any technology not listed above
-
-# res_folder = '../Demand/Res'
-# gdf_buildings   = process.load_gdf(res_folder + '/Buildings_Demand.feather')
-# gdf_edges       = process.load_gdf(res_folder + '/Edges.feather')
-# gdf_nodes       = process.load_gdf(res_folder + '/Nodes.feather')
-# gdf_connections = process.load_gdf(res_folder + '/Connections.feather')
-
-# plot_original(gdf_connections,gdf_buildings,gdf_edges,gdf_nodes)
-# #%%
-# gdf_buildings = clean_duplicate_buildings(gdf_buildings)
-
-# building_w_source = include_source(new_buildings)
-
-# energy_price_df = compute_price_df(DISCOUNT_RATE)
-    
-
-
-# # ---------------------------------------------------------------------------
-# # 1. Run the sweep, exactly as before, but also stash per-frame data
-# # ---------------------------------------------------------------------------
-# break_point = None
-# cost_heat_range = np.arange(20, 100, 2)  # €/MWh
-# cons_array = np.zeros(cost_heat_range.size)
-# prod_array = np.zeros(cost_heat_range.size)
- 
-# frames_data = []  # everything needed to redraw the map for a given frame
-# prod_by_type_list = []  # per-frame Series: index=source type, value=summed prod
- 
-# for i, COST_OF_HEAT in enumerate(cost_heat_range):
-#     print(f"Trying {COST_OF_HEAT} €/MWh")
-#     price_building_df = define_profit(
-#         building_w_source,
-#         cost_heat=COST_OF_HEAT,
-#         benchmark='NG',
-#         energy_price_df = energy_price_df,
-#         discount_rate=DISCOUNT_RATE,
-#         year_today=YEAR_TODAY,
-#         BETA = BETA
-#     )
-    
-#     pcst_nodes, pcst_edges, int_root = design_network(
-#         price_edges_df, price_building_df, new_intersections, ROOT
-#     )
- 
-#     E = pcst_edges[['int_NODE_START', 'int_NODE_END']].to_numpy(np.int64)
-#     prizes = pcst_nodes['VALUE'].clip(lower=0).to_numpy(np.float64)  # pcst needs prizes >= 0
-#     costs = pcst_edges['COST'].to_numpy(np.float64)
- 
-#     vertices, edges = pcst_fast(
-#         E, prizes, costs,
-#         int_root,   # root
-#         1,          # num_clusters
-#         'none',   # pruning: 'none' | 'simple' | 'gw' | 'strong'
-#         0,          # verbosity
-#     )
- 
-#     e = np.asarray(edges)
-#     v = np.asarray(vertices)
- 
-#     nodes_idx = pcst_nodes[pcst_nodes.index.isin(vertices)]
-#     sol_buildings = pd.merge(
-#         price_building_df, nodes_idx, right_on='NODE_ID', left_on='BUILDING_ID'
-#     )
-#     sel_edges = pcst_edges.iloc[edges].copy()
- 
-#     df_prod = reshape_prod_value(sol_buildings)
-#     df_cons = reshape_cons_value(sol_buildings)
-#     df_prod = df_prod[df_prod['year'] == 2030]
-#     df_cons = df_cons[df_cons['year'] == 2030]
- 
-#     cons_array[i] = df_cons['conso'].sum()
-#     prod_array[i] = df_prod['prod'].sum()
-#     prod_by_type_list.append(df_prod.groupby('type')['prod'].sum())
-#     print(f'Production:{df_prod["prod"].sum():.2f}')
-#     print(f'Consumption:{df_cons["conso"].sum():.2f}')
- 
-#     if df_prod['prod'].sum() > df_cons['conso'].sum() and break_point is None:
-#         break_point = COST_OF_HEAT
-#         print(f'FOUND BREAK POINT: {break_point} €/MWh')
- 
-#     # keep only what's needed to redraw this frame later
-#     frames_data.append({
-#         'cost': COST_OF_HEAT,
-#         'price_building_df': price_building_df.copy(),
-#         'sel_edges': sel_edges,
-#         'sol_buildings': sol_buildings.copy(),
-#     })
-#     # m = pcst_edges.iloc[edges].explore(color='black',
-#     #         tooltip=["EDGE_ID","NODE_START","NODE_END",'COST'],
-#     #         tiles="CartoDB positron")
-#     # pcst_edges.iloc[~pcst_edges['EDGE_ID'].isin(sel_edges['EDGE_ID'])].explore( m = m,
-#     #         tooltip=["EDGE_ID","NODE_START","NODE_END",'COST'],
-#     #         style_kwds=dict(color="white", weight=1, fillOpacity=0.6))
-#     # new_intersections[new_intersections['NODE_ID'].isin(nodes_idx['NODE_ID'])].explore(m=m,tooltip=['NODE_ID'], color='black')
-#     # new_intersections[~new_intersections['NODE_ID'].isin(nodes_idx['NODE_ID'])].explore(m=m,tooltip=['NODE_ID'], color='white')
-#     # price_building_df[~price_building_df['BUILDING_ID'].isin(sol_buildings['BUILDING_ID'])].explore(m=m,
-#     #         tooltip=["BUILDING_ID", "FLOOR_AREA", "SPEC_SPACE_HEAT",'VALUE'],
-#     #         style_kwds=dict(color="gray", weight=0, fillOpacity=0.6),)
-#     # sol_buildings.explore( m=m,
-#     #         tooltip=["BUILDING_ID", "FLOOR_AREA", "SPEC_SPACE_HEAT",'VALUE_x'],
-#     #         style_kwds=dict(color="red", weight=0, fillOpacity=0.6))
-#     # m.save(f'Output_solution_beta_{BETA}.html')
-
- 
-
-# #%%
-# # prod_by_type_df: rows = cost of heat, columns = source type, values = MWh produced
-# prod_by_type_df = pd.DataFrame(prod_by_type_list)
-# prod_by_type_df.index = cost_heat_range
-# prod_by_type_df = prod_by_type_df.fillna(0.0)
- 
- 
-# # ---------------------------------------------------------------------------
-# # 2. Helpers to draw each panel for a given frame
-# # ---------------------------------------------------------------------------
-# def draw_map_frame(ax, price_building_df, sel_edges, sol_buildings):
-#     ax.clear()
- 
-#     sel_buildings = price_building_df['BUILDING_ID'].isin(sol_buildings['BUILDING_ID'])
- 
-#     producers = reshape_prod_value(price_building_df[sel_buildings])
-#     producers = producers[producers['prod'] > 0]['building_id'].unique()
- 
-#     consumers = reshape_cons_value(price_building_df[sel_buildings])
-#     consumers = consumers[consumers['conso'] > 0]['building_id'].unique()
- 
-#     prosumers = producers[np.isin(producers, consumers)]
-#     consumers = consumers[~np.isin(consumers, prosumers)]
-#     producers = producers[~np.isin(producers, prosumers)]
- 
-#     mask_producers = price_building_df['BUILDING_ID'].isin(producers)
-#     mask_prosumers = price_building_df['BUILDING_ID'].isin(prosumers)
-#     mask_consumers = price_building_df['BUILDING_ID'].isin(consumers)
- 
-#     price_building_df[~sel_buildings].plot(color='lightgray', ax=ax)
-#     if mask_consumers.any():
-#         price_building_df[mask_consumers].plot(color='blue', ax=ax)
-#     if mask_prosumers.any():
-#         price_building_df[mask_prosumers].plot(color='orange', ax=ax)
-#     if mask_producers.any():
-#         price_building_df[mask_producers].plot(color='red', ax=ax)
-#     if not sel_edges.empty:
-#         sel_edges.plot(color='black', ax=ax)
- 
-#     ax.set_axis_off()
- 
-#     legend_elements = [
-#         Patch(facecolor='blue', edgecolor='blue', label='consumers'),
-#         Patch(facecolor='orange', edgecolor='orange', label='prosumers'),
-#         Patch(facecolor='red', edgecolor='red', label='producers'),
-#     ]
-#     ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(1.0, 1.0))
- 
- 
-# def draw_curve_frame(ax, cost_heat_range, prod_by_type_df, cons_array, current_cost):
-#     ax.clear()
- 
-#     # supply, decomposed by source type, as a stacked bar chart
-#     step = cost_heat_range[1] - cost_heat_range[0] if len(cost_heat_range) > 1 else 5
-#     bar_width = step * 0.8
-#     bottom = np.zeros(len(cost_heat_range))
-#     for j, source in enumerate(prod_by_type_df.columns):
-#         values = prod_by_type_df[source].to_numpy()
-#         color = TECH_COLORS.get(source, FALLBACK_CMAP(j % FALLBACK_CMAP.N))
-#         ax.bar(
-#             cost_heat_range, values, bottom=bottom, width=bar_width,
-#             label=source, color=color,
-#         )
-#         bottom += values
- 
-#     # demand stays a line, overlaid on top of the stacked supply
-#     ax.plot(cost_heat_range, cons_array, label='Demand', color='black', linewidth=2)
- 
-#     ax.axvline(current_cost, color='gray', linestyle='--', linewidth=1.5)
-#     ax.set_ylabel('Quantity MWh')
-#     ax.set_xlabel('Price €/MWh')
-#     ax.legend(loc='upper right', fontsize=8, ncol=1)
-#     ax.set_ylim(0)
- 
- 
-# # ---------------------------------------------------------------------------
-# # 3. Build and save the animation
-# # ---------------------------------------------------------------------------
-# fig, (ax_map, ax_curve) = plt.subplots(1, 2, figsize=(14, 6))
- 
- 
-# def animate(i):
-#     frame = frames_data[i]
-#     draw_map_frame(ax_map, frame['price_building_df'], frame['sel_edges'], frame['sol_buildings'])
-#     draw_curve_frame(ax_curve, cost_heat_range, prod_by_type_df, cons_array, frame['cost'])
-#     fig.suptitle(f"Cost of heat: {frame['cost']} €/MWh", fontsize=14)
- 
- 
-# ani = animation.FuncAnimation(
-#     fig, animate, frames=len(frames_data), interval=300, repeat=True
-# )
- 
-# # requires pillow (pip install pillow) — no external ImageMagick dependency needed
-# ani.save('Output/gif_maps/heat_cost_animation.gif', writer='pillow', fps=3)
-# plt.close(fig)
- 
-# print("Output/gif_maps/Saved heat_cost_animation_single.gif")
-
-# # %%
-# df = gdf_buildings.copy()
-# # %%
-# EFLH_2020 = np.mean(df['HEAT_VOLUME_2020'] * 1e3 / df['HEAT_CAPACITY_2020'])
-# EFLH_2030 = np.mean(df['HEAT_VOLUME_2030'] * 1e3 / df['HEAT_CAPACITY_2020'])
-# EFLH_2040 = np.mean(df['HEAT_VOLUME_2040'] * 1e3 / df['HEAT_CAPACITY_2020'])
-# EFLH_2050 = np.mean(df['HEAT_VOLUME_2050'] * 1e3 / df['HEAT_CAPACITY_2020'])
-# print(f"{EFLH_2020} - {EFLH_2030} - {EFLH_2040} - {EFLH_2050}")
-
-
-# elec_commodity
-# elec_distribution
-# elec_transport
-
-# # %%
-
-# # %%
-
-# BETA  = 0e8   # leaf-enforcing penalty (must exceed max true building VALUE)
-# GAMMA = 0e-6   # €/m per meter-of-distance-from-root, applied to trench cost (must be tuned/calibrated)
-# ROOT   = 'B1823663'   # single source of truth for the rooted PCST
-# DISCOUNT_RATE = 0.03
-# YEAR_TODAY    = 2026
-# #%%
-# TECH_COLORS = {
-#     'ASHP':        '#5DA9E9',  # air source heat pump -> sky blue (air)
-#     'GSHP':        '#8B5A2B',  # ground source heat pump -> earth brown (ground)
-#     'WSHP':        '#1B7A8C',  # water source heat pump -> deep teal (water)
-#     'RIOTHERMAL':  '#3AB0C3',  # river-thermal -> lighter cyan (surface water)
-#     'CHP pellet':  '#4C9A2A',  # biomass CHP -> green (renewable biomass)
-#     'FATAL_HEAT':  '#E67E22',  # recovered waste heat -> orange (industrial)
-# }
-
-# FALLBACK_CMAP = plt.get_cmap('tab20')  # used for any technology not listed above
-
-# res_folder = '../Demand/Res'
-# gdf_buildings   = process.load_gdf(res_folder + '/Buildings_Demand.feather')
-# gdf_edges       = process.load_gdf(res_folder + '/Edges.feather')
-# gdf_nodes       = process.load_gdf(res_folder + '/Nodes.feather')
-# gdf_connections = process.load_gdf(res_folder + '/Connections.feather')
-
-# plot_original(gdf_connections,gdf_buildings,gdf_edges,gdf_nodes)
-# #%%
-# gdf_buildings = clean_duplicate_buildings(gdf_buildings)
-
-# new_intersections, new_buildings, new_edges = include_connections(gdf_buildings, 
-#                                                                   gdf_nodes, 
-#                                                                   gdf_edges, 
-#                                                                   gdf_connections, 
-#                                                                   plot = False,
-#                                                                   unique_conn = True)
-
-# building_w_source = include_source(new_buildings)
-
-# energy_price_df = compute_price_df(DISCOUNT_RATE)
-    
-# price_edges_df = trench_cost(new_edges, building_w_source, COST_TRENCH = 5.0e3, BETA=BETA)
-
-
-# # ---------------------------------------------------------------------------
-# # 1. Run the sweep, exactly as before, but also stash per-frame data
-# # ---------------------------------------------------------------------------
-# break_point = None
-# cost_heat_range = np.arange(20, 100, 2)  # €/MWh
-# cons_array = np.zeros(cost_heat_range.size)
-# prod_array = np.zeros(cost_heat_range.size)
- 
-# frames_data = []  # everything needed to redraw the map for a given frame
-# prod_by_type_list = []  # per-frame Series: index=source type, value=summed prod
-
-# COST_OF_HEAT = 72
-
-# print(f"Trying {COST_OF_HEAT} €/MWh")
-# price_building_df = define_profit(
-#     building_w_source,
-#     cost_heat=COST_OF_HEAT,
-#     benchmark='NG',
-#     energy_price_df = energy_price_df,
-#     discount_rate=DISCOUNT_RATE,
-#     year_today=YEAR_TODAY,
-#     BETA = BETA
-# )
-
-# pcst_nodes, pcst_edges, int_root = design_network(
-#     price_edges_df, price_building_df, new_intersections, ROOT
-# )
-
-# E = pcst_edges[['int_NODE_START', 'int_NODE_END']].to_numpy(np.int64)
-# prizes = pcst_nodes['VALUE'].clip(lower=0).to_numpy(np.float64)  # pcst needs prizes >= 0
-# costs = pcst_edges['COST'].to_numpy(np.float64)
-
-# vertices, edges = pcst_fast(
-#     E, prizes, costs,
-#     int_root,   # root
-#     1,          # num_clusters
-#     'none',   # pruning: 'none' | 'simple' | 'gw' | 'strong'
-#     0,          # verbosity
-# )
-
-# e = np.asarray(edges)
-# v = np.asarray(vertices)
-
-# nodes_idx = pcst_nodes[pcst_nodes.index.isin(vertices)]
-# sol_buildings = pd.merge(
-#     price_building_df, nodes_idx, right_on='NODE_ID', left_on='BUILDING_ID'
-# )
-# sel_edges = pcst_edges.iloc[edges].copy()
-
-# df_prod = reshape_prod_value(sol_buildings)
-# df_cons = reshape_cons_value(sol_buildings)
-# df_prod = df_prod[df_prod['year'] == 2030]
-# df_cons = df_cons[df_cons['year'] == 2030]
-
-# cons_array[i] = df_cons['conso'].sum()
-# prod_array[i] = df_prod['prod'].sum()
-# prod_by_type_list.append(df_prod.groupby('type')['prod'].sum())
-# print(f'Production:{df_prod["prod"].sum():.2f}')
-# print(f'Consumption:{df_cons["conso"].sum():.2f}')
-
-
-# m = pcst_edges.iloc[edges].explore(color='black',
-#         tooltip=["EDGE_ID","NODE_START","NODE_END",'COST'],
-#         tiles="CartoDB positron")
-# pcst_edges.iloc[~pcst_edges['EDGE_ID'].isin(sel_edges['EDGE_ID'])].explore( m = m,
-#         tooltip=["EDGE_ID","NODE_START","NODE_END",'COST'],
-#         style_kwds=dict(color="white", weight=1, fillOpacity=0.6))
-# new_intersections[new_intersections['NODE_ID'].isin(nodes_idx['NODE_ID'])].explore(m=m,tooltip=['NODE_ID'], color='black')
-# new_intersections[~new_intersections['NODE_ID'].isin(nodes_idx['NODE_ID'])].explore(m=m,tooltip=['NODE_ID'], color='white')
-# price_building_df[~price_building_df['BUILDING_ID'].isin(sol_buildings['BUILDING_ID'])].explore(m=m,
-#         tooltip=["BUILDING_ID", "FLOOR_AREA", "SPEC_SPACE_HEAT",'VALUE'],
-#         style_kwds=dict(color="gray", weight=0, fillOpacity=0.6),)
-# sol_buildings.explore( m=m,
-#         tooltip=["BUILDING_ID", "FLOOR_AREA", "SPEC_SPACE_HEAT",'VALUE_x'],
-#         style_kwds=dict(color="red", weight=0, fillOpacity=0.6))
-# m.save(f'Output_solution_beta_{BETA}.html')
+# import os
+# import shutil
+# os.environ["PATH"] += os.pathsep + "/Library/TeX/texbin"
+# print(shutil.which("latex"))
 
 #%%
-# %% NEW VERSION FOR CLEANING PURPOSE
 
 def plot_html_maps(gdf_connections = None,
                    gdf_buildings = None,
@@ -708,7 +94,7 @@ def plot_html_maps(gdf_connections = None,
     else:
         m.show_in_browser()
 
-def import_original(plot = False, plot_filename = None):
+def import_original(plot=False, plot_filename=None):
 
     res_folder = '../Demand/Res'
     gdf_buildings   = process.load_gdf(res_folder + '/Buildings_Demand.feather')
@@ -717,7 +103,7 @@ def import_original(plot = False, plot_filename = None):
     gdf_connections = process.load_gdf(res_folder + '/Connections.feather')
 
     if plot:
-        plot_html_maps(gdf_connections,gdf_buildings,gdf_edges,gdf_nodes, filename=plot_filename)
+        plot_html_maps(gdf_connections, gdf_buildings, gdf_edges, gdf_nodes, filename=plot_filename)
 
     return gdf_buildings, gdf_edges, gdf_nodes, gdf_connections
 
@@ -740,7 +126,7 @@ def split_data(gdf_buildings):
 
     # computing equivalent full load hours
     eflh = df_long[['year','volume']].groupby(by=['year']).sum()
-    eflh['eflh'] = (1e3 * eflh['volume'] /df_long['capacity'].loc[df_long['year']==2030].sum())
+    eflh['eflh'] = (1e3 * eflh['volume'] / df_long['capacity'].loc[df_long['year']==2030].sum())
     eflh = eflh.drop(columns=['volume']).reset_index()
 
     # computing acccesses
@@ -756,7 +142,7 @@ def split_data(gdf_buildings):
     gdf_building_prod.loc[gdf_building_prod['tech'] == 'FATAL_HEAT_ACCESS','power_MW_th']   = 0.10 # MW
 
     # adding custom data
-    df = pd.read_excel('../Data/tech_locations.xlsx', sheet_name='building_access')[['BUILDING_ID','tech','power (MW_th)']].rename(columns={'power (MW_th)':'power_MW_th'})
+    df = pd.read_excel('tech_locations.xlsx', sheet_name='building_access')[['BUILDING_ID','tech','power (MW_th)']].rename(columns={'power (MW_th)':'power_MW_th'})
     gdf_building_prod = pd.concat([df,gdf_building_prod])
 
     return eflh, df_long.drop(columns=['capacity']), gdf_building_prod
@@ -827,19 +213,19 @@ def compute_price_df(DISCOUNT_RATE, plot=False):
     NG_emission_factor = 0.2 # taken from Gemini (tCO2/MWh)
 
     years = [2030, 2040, 2050]
-    df_yearly = pd.DataFrame(index = [2030,2040,2050], columns=['SC_CO2','CO2_elec','elec_commodity'])
+    df_yearly = pd.DataFrame(index = [2030, 2040, 2050], columns=['SC_CO2','CO2_elec','elec_commodity'])
 
     for year in years:
-        mp = pd.read_csv(f'../Data/marginal_price_results/marginal_price_t2m_co2_{year}.csv', parse_dates= True, index_col='time')
+        mp = pd.read_csv(f'marginal_price_results/marginal_price_t2m_co2_{year}.csv', parse_dates= True, index_col='time')
         marginal_gas = mp['AC (EUR/MWh)'] > 40
-        mp.loc[marginal_gas, 'AC (EUR/MWh)'] *= 2 # gas price is closer to 80 EUR/MWh -->double the reported value
+        mp.loc[marginal_gas, 'AC (EUR/MWh)'] *= 2 # gas price is closer to 80 EUR/MWh --> double the reported value
         mp.loc[marginal_gas, 'AC (EUR/MWh)'] += SC_CO2[year] * CCGT_emission_factor # adding CO2 cost
         mp['date'] = mp.index.date
         mp = mp.groupby('date').mean().reset_index()
 
         # mp['AC (EUR/MWh)'].plot()
         mp['HDD'] = 15 - mp['T2m (C)']
-        mp.loc[mp['HDD'] < 0, 'HDD'] = 0   # rows where HDD<0, column 'HDD'
+        mp.loc[mp['HDD'] < 0, 'HDD'] = 0 # rows where HDD < 0, column 'HDD'
 
         df_yearly.loc[year,'elec_commodity']    = (mp['HDD'] @ mp['AC (EUR/MWh)']) / mp['HDD'].sum()
         df_yearly.loc[year,'SC_CO2']            = SC_CO2[year]
@@ -910,9 +296,9 @@ def include_connections(gdf_buildings,
     if unique_conn:
         gdf_connections = (
             gdf_connections
-            .assign(_len=gdf_connections.length)      # compute connection length
-            .sort_values('_len')                       # shortest first
-            .drop_duplicates('BUILDING_ID', keep='first')  # keep shortest per building
+            .assign(_len=gdf_connections.length) # compute connection length
+            .sort_values('_len') # shortest first
+            .drop_duplicates('BUILDING_ID', keep='first') # keep shortest per building
             .drop(columns='_len')
             .reset_index(drop=True)
         )
@@ -1211,7 +597,7 @@ def define_building_value(
     
 
     # --- Adapt the cost to the size of the plants ---
-    tech_df = pd.read_excel('../Data/tech_locations.xlsx', sheet_name='technologies')[['tech','primary','Nominal power MW','capex (MEUR/MW_th)','efficiency_th (MW_th/MW_prim)','efficiency_e (MW_e/MW_prim)','Variable o&m (€/MWh_th)','Fixed o&m (€/MW_th)']]
+    tech_df = pd.read_excel('tech_locations.xlsx', sheet_name='technologies')[['tech','primary','Nominal power MW','capex (MEUR/MW_th)','efficiency_th (MW_th/MW_prim)','efficiency_e (MW_e/MW_prim)','Variable o&m (€/MWh_th)','Fixed o&m (€/MW_th)']]
     
     interp_cols = [
         'efficiency_th (MW_th/MW_prim)',
@@ -1824,7 +1210,7 @@ def plot_supply_demand(costs_array, production, consumption, individual_sol, ind
     ax.set_xlim(cost_min-2,cost_max+2)
     ax.set_xlabel(f'Cost of heat ({display_euro}/MWh)')
     ax.set_ylabel('GWh')
-    ax.set_title(f'Supply-demand curves with decentralized {individual_sol} \nas competing technology and cost of heat indexed.')
+    ax.set_title(f'Supply-demand curves with decentralised {individual_sol} \nas competing technology and cost of heat indexed.')
     # ax.set_ylim(0,2500)
     handles, labels = ax.get_legend_handles_labels()
     ax.legend(
@@ -2072,7 +1458,7 @@ def plot_geography_sol(balanced, individual_sol, indexing_heat_cost, color_tech_
 
     # --- legend 1: technology colors ---
     tech_handles = [mpatches.Patch(color=tech_color[t], label=t) for t in tech_cols]
-    tech_legend = ax.legend(handles=tech_handles, title='Technology', loc='upper right')
+    tech_legend = ax.legend(handles=tech_handles, title='Technology', loc='upper right',  bbox_to_anchor=(1.02, 1.02))
     ax.add_artist(tech_legend)
 
     # --- legend 2: size reference circles (drawn in data units, same scale as the pies) ---
@@ -2080,7 +1466,7 @@ def plot_geography_sol(balanced, individual_sol, indexing_heat_cost, color_tech_
 
     minx, miny, maxx, maxy = to_plot2.total_bounds
     x0 = maxx - 0.25 * (maxx - minx)
-    y0 = miny + 0.05 * (maxy - miny)
+    y0 = miny + 0.02 * (maxy - miny)
     spacing = 1.2 * max_radius
 
     # --- background frame ---
@@ -2101,12 +1487,12 @@ def plot_geography_sol(balanced, individual_sol, indexing_heat_cost, color_tech_
     for i, val in enumerate(ref_values):
         r = radius_for(val)
         cy = y0 + i * spacing
-        circle = mpatches.Circle((x0, cy), r, facecolor='none', edgecolor='black', linewidth=0.8,zorder=4)
+        circle = mpatches.Circle((x0, cy), r, facecolor='none', edgecolor='black', linewidth=0.8, zorder=4)
         ax.add_patch(circle)
         ax.annotate(f'{val:g} MW', (x0 + max_radius * 1.3, cy),
                     va='center', ha='left', fontsize=9)
 
-    ax.annotate('Installed power', (x0-100, y0 + len(ref_values) * spacing - 50),
+    ax.annotate('Installed power', (x0 - 100, y0 + len(ref_values) * spacing - 65),
                 va='bottom', ha='left', fontsize=12, fontweight='bold')
 
     ax.spines[['top', 'right', 'bottom', 'left']].set_visible(False)
@@ -2135,8 +1521,7 @@ color_tech_rgb = {
 
 
 if __name__ == '__main__':
-    print('NAME')
-    gdf_raw_buildings, gdf_raw_edges, gdf_raw_nodes, gdf_raw_connections = import_original(plot=False, plot_filename = 'data_dimitri.html')
+    gdf_raw_buildings, gdf_raw_edges, gdf_raw_nodes, gdf_raw_connections = import_original(plot=True, plot_filename='demand_model.html')
     gdf_intersections, gdf_buildings, gdf_edges = include_connections(gdf_raw_buildings, 
                                                                         gdf_raw_nodes, 
                                                                         gdf_raw_edges, 
@@ -2174,7 +1559,7 @@ if __name__ == '__main__':
 #%%
 display_NPV = False
 if __name__ == '__main__':
-    for individual_sol, indexing_heat_cost in product(['NG','ASHP'],[True,False]):
+    for individual_sol, indexing_heat_cost in product(['NG', 'ASHP'],[True, False]):
         print(f'Computing against {individual_sol} and price of heat is indexed: {indexing_heat_cost}')
         cost_min = 40
         cost_max = 90
@@ -2207,7 +1592,7 @@ if __name__ == '__main__':
             qc2030 = df_cons_sel.loc[(df_cons_sel['year'] == 2030) * df_cons_sel['selected'], 'Potential consumption MWh'].sum()
             # print(f'Consumed (2030) {qc2030/1e3:.2f} GWh')
 
-            consumption += [(df_cons_sel.loc[(df_cons_sel['year'].isin([2030,2040,2050]))* df_cons_sel['selected'],['year','Potential consumption MWh']].groupby(by=['year']).sum()['Potential consumption MWh']/1e3).to_dict()]
+            consumption += [(df_cons_sel.loc[(df_cons_sel['year'].isin([2030, 2040, 2050]))* df_cons_sel['selected'],['year','Potential consumption MWh']].groupby(by=['year']).sum()['Potential consumption MWh']/1e3).to_dict()]
             production += [(df_prod_opex_sel.loc[(df_prod_opex_sel['year']==2030) * df_prod_opex_sel['selected'],['tech','Potential Production MWh']].groupby(by=['tech']).sum()['Potential Production MWh']/1e3).to_dict()]
 
             if (balanced == None) and (qp2030>qc2030):

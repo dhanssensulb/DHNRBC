@@ -1,56 +1,59 @@
 name: dhnrbc
 
 channels:
-- conda-forge
+  - conda-forge
 
 dependencies:
   # core
-- python>=3.11,<3.13
-- pip
+  - python=3.11
+  - pip
 
   # scientific
-- numpy
-- scipy
-- pandas>=2
-- xarray
-- networkx
-- scikit-learn
+  - numpy
+  - scipy
+  - pandas>=2
+  - xarray
+  - networkx
+  - scikit-learn
 
   # geodata
-- geopandas>=1
-- shapely>=2
-- cartopy>=0.22
-- rasterio
-- pyproj
-- fiona
-- osmnx
-- owslib
-- geojson
-- folium
-- contextily
-- neatnet
+  - geopandas>=1
+  - shapely>=2
+  - cartopy>=0.22
+  - rasterio
+  - pyproj
+  - fiona
+  - osmnx
+  - owslib
+  - geojson
+  - folium
+  - contextily
+  - neatnet
+
+  # optimisation
+  - pcst_fast
 
   # file I/O
-- tabula-py
-- xlrd
-- openpyxl
-- pyxlsb
-- lxml
-- pytables
-- cfgrib
-- pyarrow
+  - tabula-py
+  - xlrd
+  - openpyxl
+  - pyxlsb
+  - lxml
+  - pytables
+  - cfgrib
+  - pyarrow
 
   # plotting
-- matplotlib>=3.8
-- plotly
-- geoviews>=1.10
-- graphviz
+  - matplotlib>=3.8
+  - plotly
+  - geoviews>=1.10
+  - graphviz
 
   # interactive
-- ipython
-- jupyterlab
-- pre-commit
-- ipywidgets
+  - ipython
+  - jupyterlab
+  - pre-commit
+  - ipywidgets
 
-- pip:
-  - highspy>=1.13
+  - pip:
+      - highspy>=1.13

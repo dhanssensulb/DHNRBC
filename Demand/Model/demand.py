@@ -48,6 +48,11 @@ plt.rc('text', usetex=True) # Use LaTeX for rendering text
 plt.rc('font', family='serif')
 plt.rc('savefig', directory='../Figures/Out', format='pdf', dpi=100)
 
+plt.rcParams.update({
+    "axes.titleweight": "normal",   # <-- fixes the bold-fallback issue
+    "figure.titleweight": "normal", # <-- same fix for suptitle
+})
+
 fig, ax = plt.subplots(figsize=(8, 6))
 
 for model in hdd_cdd['GCM'].unique():
