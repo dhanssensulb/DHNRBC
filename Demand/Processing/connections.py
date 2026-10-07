@@ -23,8 +23,11 @@ gdf_buildings = process.load_gdf(file_buildings)
 gdf_edges = process.load_gdf(file_edges)
 gdf_nodes = process.load_gdf(file_nodes)
 
+# Select middle scenario
+gdf_b = gdf_buildings[gdf_buildings.VERSION_HEAT == 'middle']
+
 # Create connections
-gdf_connections = process.connect_buildings_to_streets(gdf_buildings, gdf_edges, gdf_nodes, n_length_threshold=5)
+gdf_connections = process.connect_buildings_to_streets(gdf_b, gdf_edges, gdf_nodes, n_length_threshold=5)
 
 # Save dataframes in RES
 gdf_connections.to_feather('../Res/Connections.feather')

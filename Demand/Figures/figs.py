@@ -52,6 +52,10 @@ file_nodes = res_folder + '/Nodes.feather'
 file_connections = res_folder + '/Connections.feather'
 
 gdf_buildings = settings.load_gdf(file_buildings)
+
+# Select middle scenario
+gdf_b = gdf_buildings[gdf_buildings.VERSION_HEAT == 'middle']
+
 gdf_buildings_demand = settings.load_gdf(file_buildings_demand)
 gdf_edges = settings.load_gdf(file_edges)
 gdf_nodes = settings.load_gdf(file_nodes)
@@ -124,7 +128,7 @@ plt.show()
 # Buildings Raw - UrbIS
 fig, ax = plt.subplots(figsize=(5, 5))
 
-gdf_buildings.plot(ax=ax, color='lightgrey', edgecolor='black', linewidth=0.2)
+gdf_b.plot(ax=ax, color='lightgrey', edgecolor='black', linewidth=0.2)
 
 if save:
     plt.savefig(out_folder + 'buildings_raw.png', format='png', dpi=300, bbox_inches='tight', transparent=True)
@@ -133,7 +137,7 @@ plt.show()
 # Buildings Type - OSM + SitEx
 fig, ax = plt.subplots(figsize=(5, 5))
 
-gdf_buildings.plot(ax=ax, column='TYPE', cmap='tab10')
+gdf_b.plot(ax=ax, column='TYPE', cmap='tab10')
 
 if save:
     plt.savefig(out_folder + 'buildings_type.png', format='png', dpi=300, bbox_inches='tight', transparent=True)
@@ -142,7 +146,7 @@ plt.show()
 # Buildings Floor area - SitEx
 fig, ax = plt.subplots(figsize=(5, 5))
 
-gdf_buildings.plot(ax=ax, column='FLOOR_AREA', cmap='Purples')
+gdf_b.plot(ax=ax, column='FLOOR_AREA', cmap='Purples')
 
 if save:
     plt.savefig(out_folder + 'buildings_area.png', format='png', dpi=300, bbox_inches='tight', transparent=True)
@@ -151,7 +155,7 @@ plt.show()
 # Buildings Listed - BruGIS
 fig, ax = plt.subplots(figsize=(5, 5))
 
-gdf_buildings.plot(ax=ax, column='LISTED', cmap=binary_cmap('orange'))
+gdf_b.plot(ax=ax, column='LISTED', cmap=binary_cmap('orange'))
 
 if save:
     plt.savefig(out_folder + 'buildings_listed.png', format='png', dpi=300, bbox_inches='tight', transparent=True)
@@ -160,7 +164,7 @@ plt.show()
 # Buildings Resources
 fig, ax = plt.subplots(figsize=(5, 5))
 
-gdf_buildings.plot(ax=ax, column='RIOTHERMAL_ACCESS', cmap=binary_cmap('green'))
+gdf_b.plot(ax=ax, column='RIOTHERMAL_ACCESS', cmap=binary_cmap('green'))
 gdf_sewers.plot(ax=ax, color='darkgreen', linewidth=1, label='Sewers')
 
 if save:
@@ -171,7 +175,7 @@ plt.show()
 # Building network
 fig, ax = plt.subplots()
 
-gdf_buildings.plot(ax=ax, color='lightgrey', edgecolor='grey', linewidth=0.2)
+gdf_b.plot(ax=ax, color='lightgrey', edgecolor='grey', linewidth=0.2)
 gdf_connections.plot(ax=ax, color='blue', alpha=0.5, linewidth=0.7)
 gdf_edges.plot(ax=ax, color='red', linewidth=1)
 gdf_nodes.plot(ax=ax, color='k', markersize=2, zorder=10)
@@ -187,45 +191,48 @@ if save:
 plt.show()
 
 # Building demand
-fig, axs = plt.subplots(1, 3, figsize=(60, 20))
-plt.subplots_adjust(wspace=-0.3)
 
-lw = 0.5
+for scenario, gdf_b in gdf_buildings.groupby('VERSION_HEAT'):
 
-gdf_buildings.plot(ax=axs[0], column='SPEC_DHW', cmap='Oranges', edgecolor='black', linewidth=lw)
-axs[0].set_title('Domestic Hot Water Demand')
-add_cbar(axs[0], 'Oranges', gdf_buildings['SPEC_DHW'], r'$\frac{kWh}{m^2 \cdot year}$')
+    fig, axs = plt.subplots(1, 3, figsize=(60, 20))
+    plt.subplots_adjust(wspace=-0.3)
 
-gdf_buildings.plot(ax=axs[1], column='SPEC_SPACE_HEAT', cmap='Reds', edgecolor='black', linewidth=lw)
-axs[1].set_title('Space Heating Demand')
-add_cbar(axs[1], 'Reds', gdf_buildings['SPEC_SPACE_HEAT'], r'$\frac{kWh}{m^2 \cdot year}$')
+    lw = 0.5
 
-gdf_buildings.plot(ax=axs[2], column='SPEC_SPACE_COOL', cmap='Blues', edgecolor='black', linewidth=lw)
-axs[2].set_title('Space Cooling Demand')
-add_cbar(axs[2], 'Blues', gdf_buildings['SPEC_SPACE_COOL'], r'$\frac{kWh}{m^2 \cdot year}$')
+    gdf_b.plot(ax=axs[0], column='SPEC_DHW', cmap='Oranges', edgecolor='black', linewidth=lw)
+    axs[0].set_title('Domestic Hot Water Demand')
+    add_cbar(axs[0], 'Oranges', gdf_b['SPEC_DHW'], r'$\frac{kWh}{m^2 \cdot year}$')
 
-if save:
-    plt.savefig(out_folder + 'building_demand.pdf', bbox_inches='tight')
-    plt.savefig(out_folder + 'building_demand.png', bbox_inches='tight')
-plt.show()
+    gdf_b.plot(ax=axs[1], column='SPEC_SPACE_HEAT', cmap='Reds', edgecolor='black', linewidth=lw)
+    axs[1].set_title('Space Heating Demand')
+    add_cbar(axs[1], 'Reds', gdf_b['SPEC_SPACE_HEAT'], r'$\frac{kWh}{m^2 \cdot year}$')
+
+    gdf_b.plot(ax=axs[2], column='SPEC_SPACE_COOL', cmap='Blues', edgecolor='black', linewidth=lw)
+    axs[2].set_title('Space Cooling Demand')
+    add_cbar(axs[2], 'Blues', gdf_b['SPEC_SPACE_COOL'], r'$\frac{kWh}{m^2 \cdot year}$')
+
+    if save:
+        plt.savefig(out_folder + f'building_demand_{scenario}.pdf', bbox_inches='tight')
+        plt.savefig(out_folder + f'building_demand_{scenario}.png', bbox_inches='tight')
+    plt.show()
 
 # Building resources
 fig, axs = plt.subplots(1, 4, figsize=(80, 20))
 plt.subplots_adjust(wspace=-0.3)
 
-gdf_buildings.plot(ax=axs[0], column='GEOTHERMAL_ACCESS', cmap=binary_cmap('orange'))
+gdf_b.plot(ax=axs[0], column='GEOTHERMAL_ACCESS', cmap=binary_cmap('orange'))
 axs[0].set_title('Geothermal Access')
 
-gdf_buildings.plot(ax=axs[1], column='AQUATHERMAL_ACCESS', cmap=binary_cmap('blue'))
+gdf_b.plot(ax=axs[1], column='AQUATHERMAL_ACCESS', cmap=binary_cmap('blue'))
 gdf_canal.plot(ax=axs[1], color='lightblue', label='Canal')
 gdf_senne.plot(ax=axs[1], color='lightblue', label='Senne')
 axs[1].set_title('Aquathermal Access')
 
-gdf_buildings.plot(ax=axs[2], column='RIOTHERMAL_ACCESS', cmap=binary_cmap('green'))
+gdf_b.plot(ax=axs[2], column='RIOTHERMAL_ACCESS', cmap=binary_cmap('green'))
 gdf_sewers.plot(ax=axs[2], color='darkgreen', linewidth=2, label='Sewers')
 axs[2].set_title('Riothermal Access')
 
-gdf_buildings.plot(ax=axs[3], column='FATAL_HEAT_ACCESS', cmap=binary_cmap('red'))
+gdf_b.plot(ax=axs[3], column='FATAL_HEAT_ACCESS', cmap=binary_cmap('red'))
 axs[3].set_title('Fatal Heat Access')
 
 if save:
@@ -235,7 +242,7 @@ plt.show()
 
 # Geothermal access
 fig, ax = plt.subplots()
-gdf_buildings.plot(ax=ax, column='GEOTHERMAL_ACCESS', cmap=binary_cmap('orange'))
+gdf_b.plot(ax=ax, column='GEOTHERMAL_ACCESS', cmap=binary_cmap('orange'))
 if save:
     plt.savefig(out_folder + 'building_geothermal_access.pdf', bbox_inches='tight')
     plt.savefig(out_folder + 'building_geothermal_access.png', bbox_inches='tight')
@@ -243,7 +250,7 @@ plt.show()
 
 # Aquathermal access
 fig, ax = plt.subplots()
-gdf_buildings.plot(ax=ax, column='AQUATHERMAL_ACCESS', cmap=binary_cmap('blue'))
+gdf_b.plot(ax=ax, column='AQUATHERMAL_ACCESS', cmap=binary_cmap('blue'))
 gdf_canal.plot(ax=ax, color='lightblue', label='Canal')
 gdf_senne.plot(ax=ax, color='lightblue', label='Senne')
 canal_patch = mpatches.Patch(color='lightblue', label='Canal')
@@ -256,7 +263,7 @@ plt.show()
 
 # Riothermal access
 fig, ax = plt.subplots()
-gdf_buildings.plot(ax=ax, column='RIOTHERMAL_ACCESS', cmap=binary_cmap('green'))
+gdf_b.plot(ax=ax, column='RIOTHERMAL_ACCESS', cmap=binary_cmap('green'))
 gdf_sewers.plot(ax=ax, color='darkgreen', linewidth=2, label='Sewers')
 ax.legend(loc='upper right')
 if save:
@@ -266,7 +273,7 @@ plt.show()
 
 # Fatal heat access
 fig, ax = plt.subplots()
-gdf_buildings.plot(ax=ax, column='FATAL_HEAT_ACCESS', cmap=binary_cmap('red'))
+gdf_b.plot(ax=ax, column='FATAL_HEAT_ACCESS', cmap=binary_cmap('red'))
 if save:
     plt.savefig(out_folder + 'building_fatal_heat_access.pdf', bbox_inches='tight')
     plt.savefig(out_folder + 'building_fatal_heat_access.png', bbox_inches='tight')
@@ -276,10 +283,10 @@ plt.show()
 fig, axs = plt.subplots(1, 2, figsize=(40, 20))
 plt.subplots_adjust(wspace=-0.2)
 
-gdf_buildings.plot(ax=axs[1], column='LISTED', cmap=binary_cmap('purple'))
+gdf_b.plot(ax=axs[1], column='LISTED', cmap=binary_cmap('purple'))
 axs[1].set_title('Listed Buildings')
 
-gdf_buildings.plot(ax=axs[0], column='TYPE', cmap='tab10', legend=True)
+gdf_b.plot(ax=axs[0], column='TYPE', cmap='tab10', legend=True)
 axs[0].set_title('Building Type')
 
 legend = axs[0].get_legend()
@@ -295,39 +302,41 @@ if save:
 plt.show()
 # %%
 
-# Building demand evolution
-fig, axs = plt.subplots(1, 2, figsize=(40, 20))
-plt.subplots_adjust(wspace=-0.3)
+for scenario, gdf_b in gdf_buildings_demand.groupby('VERSION_HEAT'):
 
-lw = 0.5
-lw_listed = 3.5*lw
+    # Building demand evolution
+    fig, axs = plt.subplots(1, 2, figsize=(40, 20))
+    plt.subplots_adjust(wspace=-0.3)
 
-vmin = min(gdf_buildings_demand['HEAT_VOLUME_2020'].min(), gdf_buildings_demand['HEAT_VOLUME_2050'].min())
-vmax = max(gdf_buildings_demand['HEAT_VOLUME_2020'].max(), gdf_buildings_demand['HEAT_VOLUME_2050'].max())
+    lw = 0.5
+    lw_listed = 3.5*lw
 
-cmap = plt.cm.Reds
-norm = colors.Normalize(vmin=vmin, vmax=vmax)
+    vmin = min(gdf_b['HEAT_VOLUME_2020'].min(), gdf_b['HEAT_VOLUME_2050'].min())
+    vmax = max(gdf_b['HEAT_VOLUME_2020'].max(), gdf_b['HEAT_VOLUME_2050'].max())
 
-gdf_buildings_demand.plot(ax=axs[0], column='HEAT_VOLUME_2020', cmap=cmap, norm=norm, edgecolor='black', linewidth=lw)
-gdf_buildings_demand.query("LISTED == 1").plot(ax=axs[0], facecolor='none', edgecolor='k', linewidth=lw_listed)
-axs[0].set_title('Heating Demand 2020')
+    cmap = plt.cm.Reds
+    norm = colors.Normalize(vmin=vmin, vmax=vmax)
 
-gdf_buildings_demand.plot(ax=axs[1], column='HEAT_VOLUME_2050', cmap=cmap, norm=norm, edgecolor='black', linewidth=lw)
-gdf_buildings_demand.query("LISTED == 1").plot(ax=axs[1], facecolor='none', edgecolor='k', linewidth=lw_listed)
-axs[1].set_title('Heating Demand 2050')
+    gdf_b.plot(ax=axs[0], column='HEAT_VOLUME_2020', cmap=cmap, norm=norm, edgecolor='black', linewidth=lw)
+    gdf_b.query("LISTED == 1").plot(ax=axs[0], facecolor='none', edgecolor='k', linewidth=lw_listed)
+    axs[0].set_title('Heating Demand 2020')
 
-cbar = fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ax=axs, orientation='horizontal', fraction=0.03, pad=0.0)
-cbar.set_label(r'Heating Demand $\left[\frac{MWh}{year}\right]$', fontsize=30)
-cbar.ax.tick_params(labelsize=25)
-cbar.outline.set_edgecolor('black')
-cbar.outline.set_linewidth(1)
+    gdf_b.plot(ax=axs[1], column='HEAT_VOLUME_2050', cmap=cmap, norm=norm, edgecolor='black', linewidth=lw)
+    gdf_b.query("LISTED == 1").plot(ax=axs[1], facecolor='none', edgecolor='k', linewidth=lw_listed)
+    axs[1].set_title('Heating Demand 2050')
 
-listed_patch = plt.Line2D([0], [0], color='k', lw=lw_listed, label='Listed Buildings')
-plt.legend(handles=[listed_patch], loc='upper right', fontsize=25)
+    cbar = fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ax=axs, orientation='horizontal', fraction=0.03, pad=0.0)
+    cbar.set_label(r'Heating Demand $\left[\frac{MWh}{year}\right]$', fontsize=30)
+    cbar.ax.tick_params(labelsize=25)
+    cbar.outline.set_edgecolor('black')
+    cbar.outline.set_linewidth(1)
 
-if save:
-    plt.savefig(out_folder + 'building_demand_evolution.pdf', bbox_inches='tight')
-    plt.savefig(out_folder + 'building_demand_evolution.png', bbox_inches='tight')
-plt.show()
+    listed_patch = plt.Line2D([0], [0], color='k', lw=lw_listed, label='Listed Buildings')
+    plt.legend(handles=[listed_patch], loc='upper right', fontsize=25)
+
+    if save:
+        plt.savefig(out_folder + f'building_demand_evolution_{scenario}.pdf', bbox_inches='tight')
+        plt.savefig(out_folder + f'building_demand_evolution_{scenario}.png', bbox_inches='tight')
+    plt.show()
 
 # %%

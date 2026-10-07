@@ -74,3 +74,31 @@ plt.savefig(out_folder + 'input_model_evolution.png', bbox_inches='tight')
 plt.show()
 
 # %%
+
+import pandas as pd
+
+# Select a scenario
+
+gdf_b_s = gdf_b_demand[gdf_b_demand.VERSION_HEAT == 'low']
+
+
+df_sector_info = pd.DataFrame({
+    'count': gdf_b_s['TYPE'].value_counts(),
+    'count_percent': (gdf_b_s['TYPE'].value_counts(normalize=True) * 100).round(0),
+    'spec_space_heat': gdf_b_s.groupby('TYPE')['SPEC_SPACE_HEAT'].first(),
+    'heat_volume_2020': (gdf_b_s.groupby('TYPE')['HEAT_VOLUME_2020'].sum() / 1e3).round(0),
+    'heat_volume_2020_percent': (gdf_b_s.groupby('TYPE')['HEAT_VOLUME_2020'].sum() / gdf_b_s['HEAT_VOLUME_2020'].sum() * 100).round(0),
+    'heat_volume_2050': (gdf_b_s.groupby('TYPE')['HEAT_VOLUME_2050'].sum() / 1e3).round(0),
+    'heat_volume_2050_percent': (gdf_b_s.groupby('TYPE')['HEAT_VOLUME_2050'].sum() / gdf_b_s['HEAT_VOLUME_2050'].sum() * 100).round(0),
+})
+
+df_listed_info = pd.DataFrame({
+    'count': gdf_b_s['LISTED'].value_counts(),
+    'count_percent': (gdf_b_s['LISTED'].value_counts(normalize=True) * 100).round(0),
+    'heat_volume_2020': (gdf_b_s.groupby('LISTED')['HEAT_VOLUME_2020'].sum() / 1e3).round(0),
+    'heat_volume_2020_percent': (gdf_b_s.groupby('LISTED')['HEAT_VOLUME_2020'].sum() / gdf_b_s['HEAT_VOLUME_2020'].sum() * 100).round(0),
+    'heat_volume_2050': (gdf_b_s.groupby('LISTED')['HEAT_VOLUME_2050'].sum() / 1e3).round(0),
+    'heat_volume_2050_percent': (gdf_b_s.groupby('LISTED')['HEAT_VOLUME_2050'].sum() / gdf_b_s['HEAT_VOLUME_2050'].sum() * 100).round(0),
+})
+
+# %%

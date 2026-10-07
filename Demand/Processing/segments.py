@@ -41,8 +41,11 @@ file_buildings = res_folder + '/Buildings.feather'
 
 gdf_buildings = process.load_gdf(file_buildings)
 
+# Select middle scenario
+gdf_b = gdf_buildings[gdf_buildings.VERSION_HEAT == 'middle']
+
 # Clean segments
-gdf_edges, gdf_nodes = process.clean_segments(gdf_edges_urbis, mask=gdf_buildings.geometry)
+gdf_edges, gdf_nodes = process.clean_segments(gdf_edges_urbis, mask=gdf_b.geometry)
 
 # Save dataframes in RES
 gdf_edges.to_feather('../Res/Edges.feather')

@@ -88,6 +88,20 @@ gdf_build = gdf_build[~mask_unhabited]
 gdf = process.group_urbis_footprint(gdf_cad, gdf_B, gdf_build, gdf_a)
 gdf = gdf.set_geometry('geometry_building')
 
+# Building scenarios
+
+scenarios = { "low": 0.5, "middle": 1.0, "high": 1.5} # + 50 % / - 50 %
+gdf_build_scenarios = []
+
+for version, factor in scenarios.items():
+    gdf = gdf_build.copy()
+    mask = gdf.TYPE == 'Unknown'
+    gdf.loc[mask, ['SPEC_SPACE_HEAT', 'SPEC_DHW']] *= factor
+    gdf['VERSION_HEAT'] = version
+    gdf_build_scenarios.append(gdf)
+
+gdf_build = pd.concat(gdf_build_scenarios, ignore_index=True)
+
 # Save dataframes in RES
 gdf_build.to_feather('../Res/Buildings.feather')
 gdf_cad.to_feather('../Res/Cadastral.feather')

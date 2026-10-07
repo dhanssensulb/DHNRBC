@@ -17,7 +17,8 @@ dependencies:
   - scikit-learn
 
   # geodata
-  - geopandas>=1
+  - gdal
+  - geopandas>=1,<1.2
   - shapely>=2
   - cartopy>=0.22
   - rasterio
@@ -31,7 +32,7 @@ dependencies:
   - neatnet
 
   # optimisation
-  - pcst_fast
+  - highspy>=1.13
 
   # file I/O
   - tabula-py
@@ -48,12 +49,14 @@ dependencies:
   - plotly
   - geoviews>=1.10
   - graphviz
+  - python-graphviz
 
   # interactive
   - ipython
+  - ipykernel
   - jupyterlab
   - pre-commit
   - ipywidgets
 
   - pip:
-      - highspy>=1.13
+    - pcst_fast
